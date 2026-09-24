@@ -10,7 +10,7 @@ export default async function handler(req: any, res: any) {
 
   // Konfigurasi SMTP khusus Microsoft Outlook / Office 365
   const transporter = nodemailer.createTransport({
-    host: 'smtp.office365.com',
+    host: 'smtp-mail.outlook.com',
     port: 587,
     secure: false, // Wajib false untuk port 587 (TLS akan diaktifkan otomatis)
     auth: {
