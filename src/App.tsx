@@ -38,6 +38,7 @@ export default function App() {
   }>({ isOpen: false, type: 'handover' });
 
   const [toastMessage, setToastMessage] = useState<{ title: string; desc: string } | null>(null);
+  const [isStandaloneMode, setIsStandaloneMode] = useState(false);
 
   const showToast = (title: string, desc: string) => {
     setToastMessage({ title, desc });
@@ -79,41 +80,35 @@ export default function App() {
     fetchRecords();
   }, []);
 
-  // ---------------------------------------------------------
-  // LOGIKA BARU: Membaca ID dari URL saat link email diklik
-  // ---------------------------------------------------------
+  // LOGIKA BARU: Membaca ID dari URL dan mengunci aplikasi (Standalone Mode)
   useEffect(() => {
-    // Pastikan data BAST dan Master Karyawan sudah selesai ditarik
-    if (records.length > 0 && employeeList.length > 0) {
+    if (records.length > 0) {
       const params = new URLSearchParams(window.location.search);
       const urlId = params.get('id');
 
       if (urlId) {
-        // Cari data BAST berdasarkan ID di URL
         const targetRecord = records.find(r => r.id === urlId);
-
         if (targetRecord) {
-          // 1. Ubah tampilan menjadi mode 'user'
+          // 1. Kunci aplikasi ke mode khusus (sembunyikan Navbar & Dashboard)
+          setIsStandaloneMode(true);
           setCurrentRole('user');
 
-          // 2. Otomatis login sebagai user penerima (berdasarkan email di BAST)
-          const recipientUser = employeeList.find(
-            e => e.email.toLowerCase() === targetRecord.recipientEmail.toLowerCase()
-          );
-          if (recipientUser) {
-            setCurrentUser(recipientUser);
-          }
+          // 2. Paksa profil yang aktif menjadi persis seperti data di BAST
+          // Ini menjamin tombol Approve selalu muncul
+          setCurrentUser({
+            name: targetRecord.recipientName,
+            nik: targetRecord.recipientNIK,
+            email: targetRecord.recipientEmail,
+            department: targetRecord.department,
+            role: 'user'
+          });
 
-          // 3. Langsung buka Pop-up Modal Konfirmasi BAST
+          // 3. Tampilkan data BAST tersebut
           setDetailRecord(targetRecord);
-
-          // 4. (Opsional) Bersihkan URL di browser agar pop-up tidak terbuka lagi saat di-refresh
-          window.history.replaceState({}, '', '/');
         }
       }
     }
-  }, [records, employeeList]);
-  // ---------------------------------------------------------
+  }, [records]);
 
   const nextBastNumber = generateNextBastNumber(records);
 
@@ -258,6 +253,31 @@ export default function App() {
   ).length;
 
   if (loadingData) return <div className="p-10 text-center font-bold text-slate-500">Menyinkronkan data dengan Supabase...</div>;
+
+  // ---> TAMBAHKAN BLOK INI UNTUK LAYAR KHUSUS KONFIRMASI <---
+  if (isStandaloneMode && detailRecord) {
+    return (
+      <div id="bast-app-root" className="min-h-screen bg-slate-800 flex items-center justify-center p-4">
+        {toastMessage && (
+          <div className="fixed top-5 z-50 bg-white text-slate-800 px-5 py-3.5 rounded-2xl shadow-xl flex items-start gap-3 border border-slate-200">
+            <div className="w-7 h-7 rounded-xl bg-emerald-500 flex items-center justify-center shrink-0 mt-0.5"><CheckCircle2 className="w-4 h-4 text-white" /></div>
+            <div className="space-y-0.5 text-xs"><div className="font-bold">{toastMessage.title}</div><div className="text-slate-600">{toastMessage.desc}</div></div>
+          </div>
+        )}
+
+        {/* Render Modal secara penuh dan matikan fungsi tombol Close (X) */}
+        <BastDetailModal
+          isOpen={true}
+          onClose={() => { }}
+          record={detailRecord}
+          onConfirmReceipt={handleConfirmReceipt}
+          isUserView={true}
+          canConfirm={detailRecord.status === 'Menunggu Konfirmasi'}
+        />
+      </div>
+    );
+  }
+  // -------------------------------------------------------------
 
   return (
     <div id="bast-app-root" className="min-h-screen bg-slate-100 text-slate-800 flex flex-col font-sans">
