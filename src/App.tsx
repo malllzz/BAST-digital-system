@@ -79,6 +79,42 @@ export default function App() {
     fetchRecords();
   }, []);
 
+  // ---------------------------------------------------------
+  // LOGIKA BARU: Membaca ID dari URL saat link email diklik
+  // ---------------------------------------------------------
+  useEffect(() => {
+    // Pastikan data BAST dan Master Karyawan sudah selesai ditarik
+    if (records.length > 0 && employeeList.length > 0) {
+      const params = new URLSearchParams(window.location.search);
+      const urlId = params.get('id');
+
+      if (urlId) {
+        // Cari data BAST berdasarkan ID di URL
+        const targetRecord = records.find(r => r.id === urlId);
+
+        if (targetRecord) {
+          // 1. Ubah tampilan menjadi mode 'user'
+          setCurrentRole('user');
+
+          // 2. Otomatis login sebagai user penerima (berdasarkan email di BAST)
+          const recipientUser = employeeList.find(
+            e => e.email.toLowerCase() === targetRecord.recipientEmail.toLowerCase()
+          );
+          if (recipientUser) {
+            setCurrentUser(recipientUser);
+          }
+
+          // 3. Langsung buka Pop-up Modal Konfirmasi BAST
+          setDetailRecord(targetRecord);
+
+          // 4. (Opsional) Bersihkan URL di browser agar pop-up tidak terbuka lagi saat di-refresh
+          window.history.replaceState({}, '', '/');
+        }
+      }
+    }
+  }, [records, employeeList]);
+  // ---------------------------------------------------------
+
   const nextBastNumber = generateNextBastNumber(records);
 
   // 2. Insert Data BAST & Trigger Email Approval
