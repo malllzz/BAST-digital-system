@@ -36,7 +36,7 @@ export default function App() {
     record?: BastRecord;
     item?: LicenseItem;
   }>({ isOpen: false, type: 'handover' });
-  
+
   const [toastMessage, setToastMessage] = useState<{ title: string; desc: string } | null>(null);
 
   const showToast = (title: string, desc: string) => {
@@ -47,11 +47,11 @@ export default function App() {
   // 1. Fetch Data Terpusat (BAST & Master Karyawan)
   const fetchRecords = async () => {
     setLoadingData(true);
-    
+
     // Tarik data BAST beserta relasi item lisensinya
     const { data: bastData, error: bastError } = await supabase
       .from('bast_records')
-      .select('*, items:license_items(*)'); 
+      .select('*, items:license_items(*)');
 
     if (bastError) {
       console.error('Error fetching records:', bastError);
@@ -116,22 +116,24 @@ export default function App() {
 
     // Trigger API Vercel Serverless untuk Notifikasi BAST Baru
     try {
+      // Pastikan ada minimal 1 item lisensi untuk ditampilkan di email
+      const firstItem = items && items.length > 0 ? items[0] : null;
+
       await fetch('/api/send-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           to: newBast.recipientEmail,
           subject: `Mohon Konfirmasi - BAST Lisensi ${newBast.bastNumber}`,
-          html: `
-            <div style="font-family: sans-serif; color: #333;">
-              <h2>Pemberitahuan Serah Terima Lisensi Software</h2>
-              <p>Halo <b>${newBast.recipientName}</b>,</p>
-              <p>Tim IT telah menerbitkan BAST dengan nomor referensi <b>${newBast.bastNumber}</b> untuk pemenuhan kebutuhan lisensi Anda.</p>
-              <p>Mohon segera lakukan konfirmasi penerimaan melalui portal dengan mengklik tautan di bawah ini:</p>
-              <a href="${window.location.origin}/?bastId=${insertedBast.id}" style="display: inline-block; padding: 10px 20px; background-color: #2563eb; color: #fff; text-decoration: none; border-radius: 5px;">Buka Portal BAST</a>
-              <p style="margin-top: 20px; font-size: 12px; color: #666;">Pesan ini dihasilkan otomatis oleh sistem. Harap tidak membalas email ini.</p>
-            </div>
-          `
+
+          // Parameter baru yang wajib dikirim ke API
+          bastId: insertedBast.id,
+          employeeName: newBast.recipientName,
+          employeeNik: newBast.recipientNIK,
+          bastNumber: newBast.bastNumber,
+          softwareName: firstItem ? firstItem.softwareName : 'Multiple Licenses',
+          licenseType: firstItem ? firstItem.licenseType : '-',
+          expiryDate: firstItem?.expiryDate ? firstItem.expiryDate : '-'
         })
       });
     } catch (emailErr) {
