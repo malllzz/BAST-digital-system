@@ -1,0 +1,6 @@
+{
+  "name": "BAST Digital Lisensi Software",
+  "description": "Aplikasi BAST Digital untuk pemenuhan lisensi software perusahaan dengan konfirmasi autentikasi M365, multi-item lisensi, dan monitoring H-30.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
