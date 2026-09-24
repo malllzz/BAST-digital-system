@@ -8,26 +8,28 @@ export default async function handler(req: any, res: any) {
 
   const { to, subject, html } = req.body;
 
-  // Konfigurasi SMTP khusus Microsoft Outlook / Office 365
+// Konfigurasi khusus untuk Outlook Personal (mengatasi timeout)
   const transporter = nodemailer.createTransport({
     host: 'smtp-mail.outlook.com',
     port: 587,
-    secure: false, // Wajib false untuk port 587 (TLS akan diaktifkan otomatis)
+    secure: false, // Harus false untuk port 587
+    tls: {
+      ciphers: 'SSLv3', // Memaksa protokol yang bisa diterima Outlook
+      rejectUnauthorized: false // Mengabaikan error sertifikat internal server
+    },
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,
     },
-    tls: {
-      ciphers: 'SSLv3',
-    },
   });
 
+  // Saat mengirim email, pastikan 'from' HARUS SAMA dengan EMAIL_USER
   try {
-    await transporter.sendMail({
-      from: `"IT BAST System" <${process.env.EMAIL_USER}>`,
-      to,
-      subject,
-      html,
+    const info = await transporter.sendMail({
+      from: `"Sistem BAST" <${process.env.EMAIL_USER}>`, // Jangan pakai email lain di sini
+      to: to,
+      subject: subject,
+      html: html
     });
     res.status(200).json({ success: true, message: 'Email berhasil dikirim' });
   } catch (error: any) {
