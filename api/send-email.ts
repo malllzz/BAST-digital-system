@@ -6,7 +6,7 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ message: 'Method not allowed' });
   }
 
-  // Menangkap SEMUA data spesifik dari frontend (termasuk tipe dan HTML khusus jika ada)
+  // Menangkap SEMUA data spesifik dari frontend
   const { 
     to, 
     subject, 
@@ -17,12 +17,37 @@ export default async function handler(req: any, res: any) {
     softwareName,
     licenseType,
     expiryDate,
-    type, // PENANDA BARU: 'handover' atau 'expiry_reminder'
-    html  // Menangkap HTML yang dikirim dari App.tsx (jika ada)
+    type,
+    html,
+    items // <-- PENAMBAHAN: Menangkap array lisensi
   } = req.body;
 
-  // Merakit URL konfirmasi unik berdasarkan ID BAST
   const confirmationLink = `https://bast-digital-system.vercel.app/konfirmasi?id=${bastId}`;
+
+  // ==========================================
+  // LOGIKA PEMBUATAN BARIS TABEL DINAMIS
+  // ==========================================
+  let itemsHtml = '';
+  
+  if (items && Array.isArray(items) && items.length > 0) {
+    // Jika ada lebih dari 1 lisensi, buat baris tabel secara dinamis
+    itemsHtml = items.map((it: any) => `
+      <tr>
+        <td style="padding-top: 12px; font-weight: bold;">${it.softwareName}</td>
+        <td style="padding-top: 12px; color: #666;">${it.licenseType}</td>
+        <td style="padding-top: 12px; color: #666;">${it.licenseType === 'Perpetual' ? 'Seumur Hidup' : (it.expiryDate || '-')}</td>
+      </tr>
+    `).join('');
+  } else {
+    // Fallback jika data items kosong
+    itemsHtml = `
+      <tr>
+        <td style="padding-top: 12px; font-weight: bold;">${softwareName}</td>
+        <td style="padding-top: 12px; color: #666;">${licenseType}</td>
+        <td style="padding-top: 12px; color: #666;">${expiryDate}</td>
+      </tr>
+    `;
+  }
 
   // ==========================================
   // LOGIKA PEMILIHAN TEMPLATE HTML
@@ -30,12 +55,6 @@ export default async function handler(req: any, res: any) {
   let emailHtml = '';
 
   if (type === 'expiry_reminder') {
-    // ----------------------------------------------------
-    // TAMPILAN 1: PENGINGAT H-30 (KOTAK KUNING, TANPA TOMBOL)
-    // ----------------------------------------------------
-    
-    // Jika frontend (App.tsx) mengirimkan html khusus, gunakan itu. 
-    // Jika tidak, gunakan template fallback yang dirakit di bawah ini:
     emailHtml = html || `
       <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
         <div style="padding: 20px; background-color: #ffffff;">
@@ -70,9 +89,7 @@ export default async function handler(req: any, res: any) {
       </div>
     `;
   } else {
-    // ----------------------------------------------------
-    // TAMPILAN 2: KONFIRMASI BAST / HANDOVER (DEFAULT EXISTING)
-    // ----------------------------------------------------
+    // TEMPLATE HANDOVER (Menerapkan itemsHtml dinamis di sini)
     emailHtml = `
       <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; max-width: 600px; margin: 0 auto;">
         <p>Halo <strong>${employeeName}</strong> (NIK: ${employeeNik}),</p>
@@ -87,11 +104,7 @@ export default async function handler(req: any, res: any) {
               <th style="padding-bottom: 8px;">Tipe</th>
               <th style="padding-bottom: 8px;">Masa Berlaku</th>
             </tr>
-            <tr>
-              <td style="padding-top: 12px; font-weight: bold;">${softwareName}</td>
-              <td style="padding-top: 12px; color: #666;">${licenseType}</td>
-              <td style="padding-top: 12px; color: #666;">${expiryDate}</td>
-            </tr>
+            ${itemsHtml} 
           </table>
         </div>
 
@@ -115,7 +128,7 @@ export default async function handler(req: any, res: any) {
   const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
     port: 465,
-    secure: true, // Harus true untuk port 465
+    secure: true,
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,
@@ -127,7 +140,7 @@ export default async function handler(req: any, res: any) {
       from: `"IT Asset Management" <${process.env.EMAIL_USER}>`, 
       to: to,
       subject: subject,
-      html: emailHtml // Menggunakan template yang sudah dipilih berdasarkan tipe
+      html: emailHtml
     });
     res.status(200).json({ success: true, message: 'Email berhasil dikirim' });
   } catch (error: any) {

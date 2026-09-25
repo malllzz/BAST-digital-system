@@ -189,6 +189,7 @@ export default function App() {
             employeeName: newBast.recipientName,
             employeeNik: newBast.recipientNIK,
             bastNumber: newBast.bastNumber,
+            items: items,
             softwareName: firstItem ? firstItem.softwareName : 'Multiple Licenses',
             licenseType: firstItem ? firstItem.licenseType : '-',
             expiryDate: firstItem?.expiryDate ? firstItem.expiryDate : '-'
