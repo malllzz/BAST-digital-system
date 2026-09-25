@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Plus, Trash2, ShieldAlert, Sparkles, Send, CheckCircle2 } from 'lucide-react';
 import { BastRecord, LicenseItem, LicenseType, SimulatedUser } from '../types';
 
@@ -6,8 +6,9 @@ interface BastFormModalProps {
   isOpen: boolean;
   onClose: () => void;
   nextBastNumber: string;
-  onSave: (newBast: BastRecord) => void;
+  onSave: (newBast: BastRecord, isEdit: boolean) => void;
   simulatedUsers: SimulatedUser[];
+  initialData?: BastRecord | null;
 }
 
 const SOFTWARE_PRESETS = [
@@ -29,6 +30,7 @@ export const BastFormModal: React.FC<BastFormModalProps> = ({
   nextBastNumber,
   onSave,
   simulatedUsers,
+  initialData
 }) => {
   if (!isOpen) return null;
 
@@ -43,19 +45,36 @@ export const BastFormModal: React.FC<BastFormModalProps> = ({
   const [errorMessage, setErrorMessage] = useState('');
 
   // Multi-item license table
-  const [items, setItems] = useState<LicenseItem[]>([
-    {
-      id: `item-${Date.now()}-1`,
-      softwareName: 'Adobe Creative Cloud All Apps',
-      licenseType: 'Tahunan',
-      licenseKeyAccount: 'VIP Account: user@corp.id',
-      startDate: new Date().toISOString().split('T')[0],
-      expiryDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1))
-        .toISOString()
-        .split('T')[0],
-      isReminderSent: false,
-    },
-  ]);
+  const [items, setItems] = useState<LicenseItem[]>([]);
+
+  // Effect untuk mereset/mengisi data saat modal dibuka
+  useEffect(() => {
+    if (isOpen && initialData) {
+      setRecipientNIK(initialData.recipientNIK);
+      setRecipientName(initialData.recipientName);
+      setRecipientEmail(initialData.recipientEmail);
+      setDepartment(initialData.department);
+      setPicName(initialData.picName);
+      setPicEmail(initialData.picEmail);
+      setNotes(initialData.notes || '');
+      setItems(initialData.items.map(it => ({ ...it }))); 
+    } else if (isOpen && !initialData) {
+      setRecipientNIK(''); 
+      setRecipientName(''); 
+      setRecipientEmail(''); 
+      setDepartment(''); 
+      setNotes('');
+      setItems([{
+        id: `item-${Date.now()}-1`, 
+        softwareName: '', 
+        licenseType: 'Tahunan', 
+        licenseKeyAccount: '',
+        startDate: new Date().toISOString().split('T')[0],
+        expiryDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0],
+        isReminderSent: false,
+      }]);
+    }
+  }, [isOpen, initialData]);
 
   // Handle user preset auto-fill
   const handleSelectPresetUser = (email: string) => {
@@ -161,21 +180,21 @@ export const BastFormModal: React.FC<BastFormModalProps> = ({
     }
 
     const newBast: BastRecord = {
-      id: `bast-${Date.now()}`,
-      bastNumber: nextBastNumber,
+      id: initialData ? initialData.id : `bast-${Date.now()}`,
+      bastNumber: initialData ? initialData.bastNumber : nextBastNumber,
       recipientName: recipientName.trim(),
       recipientNIK: recipientNIK.trim(),
       recipientEmail: recipientEmail.trim(),
       department: department.trim(),
       picName: picName.trim(),
       picEmail: picEmail.trim(),
-      createdAt: new Date().toISOString(),
-      status: 'Menunggu Konfirmasi',
+      createdAt: initialData ? initialData.createdAt : new Date().toISOString(),
+      status: initialData ? initialData.status : 'Menunggu Konfirmasi',
       notes: notes.trim(),
       items: items,
     };
 
-    onSave(newBast);
+    onSave(newBast, !!initialData);
   };
 
   return (
@@ -191,9 +210,11 @@ export const BastFormModal: React.FC<BastFormModalProps> = ({
         <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2.5">
-              <span className="font-semibold text-lg">Input BAST Pemenuhan Lisensi</span>
+              <span className="font-semibold text-lg">
+                {initialData ? 'Edit Data BAST' : 'Input BAST Pemenuhan Lisensi'}
+              </span>
               <span className="px-2.5 py-0.5 rounded bg-blue-500/20 text-blue-300 font-mono text-xs border border-blue-400/30">
-                {nextBastNumber}
+                {initialData ? initialData.bastNumber : nextBastNumber}
               </span>
             </div>
             <p className="text-xs text-slate-400 mt-0.5">
@@ -218,27 +239,29 @@ export const BastFormModal: React.FC<BastFormModalProps> = ({
             </div>
           )}
 
-          {/* Quick Select Preset Karyawan */}
-          <div className="bg-blue-50/60 border border-blue-100 rounded-xl p-3 flex flex-wrap items-center justify-between gap-2">
-            <div className="text-xs text-blue-900 flex items-center gap-1.5">
-              <Sparkles className="w-4 h-4 text-blue-600" />
-              <span className="font-medium">Opsi Cepat: Isi dari Data Karyawan M365</span>
+          {/* Quick Select Preset Karyawan (Hanya tampil jika mode Buat Baru) */}
+          {!initialData && (
+            <div className="bg-blue-50/60 border border-blue-100 rounded-xl p-3 flex flex-wrap items-center justify-between gap-2">
+              <div className="text-xs text-blue-900 flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-blue-600" />
+                <span className="font-medium">Opsi Cepat: Isi dari Data Karyawan M365</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                {simulatedUsers
+                  .filter((u) => u.role === 'user')
+                  .map((u) => (
+                    <button
+                      key={u.email}
+                      type="button"
+                      onClick={() => handleSelectPresetUser(u.email)}
+                      className="text-[11px] px-2.5 py-1 bg-white hover:bg-blue-100 text-blue-700 font-medium rounded-lg border border-blue-200 transition-colors cursor-pointer"
+                    >
+                      {u.name} ({u.nik})
+                    </button>
+                  ))}
+              </div>
             </div>
-            <div className="flex items-center gap-1.5">
-              {simulatedUsers
-                .filter((u) => u.role === 'user')
-                .map((u) => (
-                  <button
-                    key={u.email}
-                    type="button"
-                    onClick={() => handleSelectPresetUser(u.email)}
-                    className="text-[11px] px-2.5 py-1 bg-white hover:bg-blue-100 text-blue-700 font-medium rounded-lg border border-blue-200 transition-colors cursor-pointer"
-                  >
-                    {u.name} ({u.nik})
-                  </button>
-                ))}
-            </div>
-          </div>
+          )}
 
           {/* Bagian 1: Data Penerima */}
           <div className="space-y-4">
@@ -483,7 +506,7 @@ export const BastFormModal: React.FC<BastFormModalProps> = ({
         <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex items-center justify-between">
           <div className="text-xs text-slate-500 flex items-center gap-1.5">
             <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-            <span>Format nomor otomatis: <strong>{nextBastNumber}</strong></span>
+            <span>Format nomor otomatis: <strong>{initialData ? initialData.bastNumber : nextBastNumber}</strong></span>
           </div>
 
           <div className="flex items-center gap-2">
@@ -500,7 +523,7 @@ export const BastFormModal: React.FC<BastFormModalProps> = ({
               className="px-5 py-2 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
             >
               <Send className="w-3.5 h-3.5" />
-              <span>Simpan & Kirim Notifikasi BAST</span>
+              <span>{initialData ? 'Update & Simpan' : 'Simpan & Kirim Notifikasi'}</span>
             </button>
           </div>
         </div>

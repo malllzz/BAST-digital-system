@@ -30,7 +30,7 @@ export interface BastRecord {
   items: LicenseItem[];
 }
 
-export type UserRole = 'pic' | 'user';
+export type UserRole = 'admin' | 'pic' | 'user';
 
 export interface SimulatedUser {
   name: string;
@@ -38,4 +38,5 @@ export interface SimulatedUser {
   email: string;
   department: string;
   role: UserRole;
+  password?: string;
 }

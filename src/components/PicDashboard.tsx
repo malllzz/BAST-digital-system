@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Filter, FileText, CheckCircle2, Clock, AlertTriangle, Eye, Mail, Layers, User, Plus } from 'lucide-react';
+import { Search, Filter, FileText, CheckCircle2, Clock, AlertTriangle, Eye, Mail, Download, Edit, Trash2, Plus } from 'lucide-react';
 import { BastRecord, BastStatus, LicenseType } from '../types';
 import { calculateDaysRemaining } from '../data/initialData';
 
@@ -9,6 +9,9 @@ interface PicDashboardProps {
   onViewDetail: (record: BastRecord) => void;
   onPreviewEmail: (record: BastRecord) => void;
   onGoToMonitoring: () => void;
+  onDeleteBast?: (id: string) => void;
+  onForceCompleteBast?: (id: string) => void;
+  onEditBast?: (record: BastRecord) => void; // <-- Tambahan untuk Edit
 }
 
 export const PicDashboard: React.FC<PicDashboardProps> = ({
@@ -17,6 +20,9 @@ export const PicDashboard: React.FC<PicDashboardProps> = ({
   onViewDetail,
   onPreviewEmail,
   onGoToMonitoring,
+  onDeleteBast,
+  onForceCompleteBast,
+  onEditBast // <-- Tambahan untuk Edit
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -27,7 +33,6 @@ export const PicDashboard: React.FC<PicDashboardProps> = ({
   const pendingCount = records.filter((r) => r.status === 'Menunggu Konfirmasi').length;
   const completedCount = records.filter((r) => r.status === 'Selesai').length;
 
-  // Count licenses nearing expiry (<= 30 days remaining and non-perpetual)
   const expiringCount = useMemo(() => {
     let count = 0;
     records.forEach((r) => {
@@ -43,37 +48,71 @@ export const PicDashboard: React.FC<PicDashboardProps> = ({
     return count;
   }, [records]);
 
-  // Filtered records
   const filteredRecords = useMemo(() => {
     return records.filter((record) => {
-      // Search term
       const query = searchTerm.toLowerCase();
       const matchSearch =
         record.bastNumber.toLowerCase().includes(query) ||
         record.recipientName.toLowerCase().includes(query) ||
         record.recipientNIK.toLowerCase().includes(query) ||
-        record.recipientEmail.toLowerCase().includes(query) ||
         record.department.toLowerCase().includes(query) ||
         record.items.some((it) => it.softwareName.toLowerCase().includes(query));
 
       if (!matchSearch) return false;
-
-      // Status filter
       if (statusFilter !== 'all' && record.status !== statusFilter) return false;
-
-      // Type filter
       if (typeFilter !== 'all') {
         const hasType = record.items.some((it) => it.licenseType === typeFilter);
         if (!hasType) return false;
       }
-
       return true;
     });
   }, [records, searchTerm, statusFilter, typeFilter]);
 
+  // FUNGSI BARU: Export Data ke format CSV
+  const handleExportCSV = () => {
+    if (filteredRecords.length === 0) {
+      alert("Tidak ada data untuk diekspor.");
+      return;
+    }
+
+    // Siapkan Header
+    let csvContent = "Nomor BAST,Penerima,NIK,Email,Departemen,Tgl Terbit,Status,Daftar Software (Nama - Tipe - Expired)\n";
+
+    // Format Data
+    filteredRecords.forEach(rec => {
+      // Gabungkan multi-item menjadi satu string
+      const softwareList = rec.items.map(it => 
+        `${it.softwareName} (${it.licenseType} - ${it.expiryDate || 'N/A'})`
+      ).join(" | ");
+
+      const row = [
+        rec.bastNumber,
+        `"${rec.recipientName}"`,
+        rec.recipientNIK,
+        rec.recipientEmail,
+        `"${rec.department}"`,
+        new Date(rec.createdAt).toLocaleDateString('id-ID'),
+        rec.status,
+        `"${softwareList}"`
+      ].join(",");
+      
+      csvContent += row + "\n";
+    });
+
+    // Buat Blob dan Download Trigger
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Data_BAST_IT_Asset_${new Date().getTime()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div id="pic-dashboard-view" className="space-y-6">
-      {/* Metric Cards */}
+      {/* Metric Cards (Tetap Sama) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total BAST */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
@@ -131,11 +170,9 @@ export const PicDashboard: React.FC<PicDashboardProps> = ({
 
       {/* Control & Filter Bar */}
       <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row items-center justify-between gap-3">
-        {/* Search */}
         <div className="relative w-full md:w-80">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
-            id="search-bast-input"
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -144,41 +181,39 @@ export const PicDashboard: React.FC<PicDashboardProps> = ({
           />
         </div>
 
-        {/* Filters and CTA */}
         <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
-          {/* Status Filter */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs text-slate-500">Status:</span>
-            <select
-              id="filter-status-select"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="text-xs bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 font-medium text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            >
-              <option value="all">Semua Status</option>
-              <option value="Menunggu Konfirmasi">Menunggu Konfirmasi</option>
-              <option value="Selesai">Selesai</option>
-            </select>
-          </div>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="text-xs bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 font-medium text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          >
+            <option value="all">Semua Status</option>
+            <option value="Menunggu Konfirmasi">Menunggu Konfirmasi</option>
+            <option value="Selesai">Selesai</option>
+          </select>
 
-          {/* Type Filter */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs text-slate-500">Tipe:</span>
-            <select
-              id="filter-type-select"
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="text-xs bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 font-medium text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            >
-              <option value="all">Semua Tipe Lisensi</option>
-              <option value="Tahunan">Tahunan</option>
-              <option value="Bulanan">Bulanan</option>
-              <option value="Perpetual">Perpetual</option>
-            </select>
-          </div>
+          <select
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+            className="text-xs bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 font-medium text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          >
+            <option value="all">Semua Tipe Lisensi</option>
+            <option value="Tahunan">Tahunan</option>
+            <option value="Bulanan">Bulanan</option>
+            <option value="Perpetual">Perpetual</option>
+          </select>
+
+          {/* TOMBOL BARU: Export Excel/CSV */}
+          <button
+            type="button"
+            onClick={handleExportCSV}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Export CSV</span>
+          </button>
 
           <button
-            id="btn-add-bast-secondary"
             type="button"
             onClick={onOpenNewBast}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors cursor-pointer"
@@ -196,10 +231,9 @@ export const PicDashboard: React.FC<PicDashboardProps> = ({
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
                 <th className="p-3.5">Nomor BAST</th>
-                <th className="p-3.5">NIK & Penerima</th>
-                <th className="p-3.5">Departemen</th>
+                <th className="p-3.5">Penerima & Info</th>
                 <th className="p-3.5">Daftar Software (Multi-Item)</th>
-                <th className="p-3.5">Tgl Terbit</th>
+                <th className="p-3.5">Tanggal</th>
                 <th className="p-3.5 text-center">Status</th>
                 <th className="p-3.5 text-right">Aksi</th>
               </tr>
@@ -207,103 +241,119 @@ export const PicDashboard: React.FC<PicDashboardProps> = ({
             <tbody className="divide-y divide-slate-100">
               {filteredRecords.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-10 text-slate-400">
-                    Tidak ada data BAST yang sesuai dengan pencarian atau filter.
+                  <td colSpan={6} className="text-center py-10 text-slate-400">
+                    Tidak ada data BAST yang sesuai pencarian.
                   </td>
                 </tr>
               ) : (
                 filteredRecords.map((rec) => (
                   <tr key={rec.id} className="hover:bg-slate-50/70 transition-colors">
-                    {/* BAST Number */}
-                    <td className="p-3.5">
+                    <td className="p-3.5 align-top">
                       <div className="font-mono font-bold text-slate-900">{rec.bastNumber}</div>
-                      <div className="text-[10px] text-slate-400">PIC: {rec.picName}</div>
+                      <div className="text-[10px] text-slate-400 mt-1">Oleh: {rec.picName}</div>
                     </td>
 
-                    {/* Recipient + NIK */}
-                    <td className="p-3.5">
+                    <td className="p-3.5 align-top">
                       <div className="font-semibold text-slate-900">{rec.recipientName}</div>
-                      <div className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
-                        <span className="font-mono bg-slate-100 px-1.5 py-0.2 rounded font-medium text-slate-700">
-                          NIK: {rec.recipientNIK}
-                        </span>
-                      </div>
-                      <div className="text-[10px] text-slate-400">{rec.recipientEmail}</div>
+                      <div className="text-[11px] text-slate-500 mt-0.5">{rec.department}</div>
+                      <div className="text-[10px] text-slate-400 mt-1">NIK: {rec.recipientNIK} | {rec.recipientEmail}</div>
                     </td>
 
-                    {/* Department */}
-                    <td className="p-3.5 text-slate-600">{rec.department}</td>
-
-                    {/* Software Items (Pills) */}
-                    <td className="p-3.5">
-                      <div className="space-y-1 max-w-xs">
+                    <td className="p-3.5 align-top">
+                      <div className="space-y-1.5 max-w-62.5">
                         {rec.items.map((it) => (
-                          <div
-                            key={it.id}
-                            className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[11px] mr-1.5 mb-1"
-                          >
-                            <span className="font-medium">{it.softwareName}</span>
-                            <span
-                              className={`text-[9px] px-1 py-0.2 rounded font-semibold ${
-                                it.licenseType === 'Perpetual'
-                                  ? 'bg-purple-200 text-purple-800'
-                                  : it.licenseType === 'Tahunan'
-                                  ? 'bg-blue-200 text-blue-800'
-                                  : 'bg-amber-200 text-amber-800'
-                              }`}
-                            >
-                              {it.licenseType}
-                            </span>
+                          <div key={it.id} className="flex flex-col gap-0.5 p-1.5 rounded-lg bg-slate-50 border border-slate-100">
+                            <div className="flex items-center justify-between">
+                              <span className="font-medium text-slate-700 truncate" title={it.softwareName}>{it.softwareName}</span>
+                              <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${
+                                it.licenseType === 'Perpetual' ? 'bg-purple-100 text-purple-700' : 
+                                it.licenseType === 'Tahunan' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'
+                              }`}>
+                                {it.licenseType}
+                              </span>
+                            </div>
+                            {it.licenseType !== 'Perpetual' && (
+                               <div className="text-[9px] text-slate-400">Exp: {it.expiryDate}</div>
+                            )}
                           </div>
                         ))}
                       </div>
                     </td>
 
-                    {/* Created Date */}
-                    <td className="p-3.5 text-slate-500 whitespace-nowrap">
+                    <td className="p-3.5 align-top whitespace-nowrap text-slate-500">
                       {new Date(rec.createdAt).toLocaleDateString('id-ID', {
-                        day: '2-digit',
-                        month: 'short',
-                        year: 'numeric',
+                        day: '2-digit', month: 'short', year: 'numeric',
                       })}
                     </td>
 
-                    {/* Status */}
-                    <td className="p-3.5 text-center whitespace-nowrap">
+                    <td className="p-3.5 align-top text-center">
                       {rec.status === 'Selesai' ? (
                         <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800">
                           <CheckCircle2 className="w-3 h-3 text-emerald-600" />
                           Selesai
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800">
-                          <Clock className="w-3 h-3 text-amber-600 animate-pulse" />
-                          Menunggu User
-                        </span>
+                        <div className="flex flex-col items-center gap-1.5">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800">
+                            <Clock className="w-3 h-3 text-amber-600 animate-pulse" />
+                            Pending
+                          </span>
+                          {/* TOMBOL BARU: Validasi Paksa (Hanya jika belum selesai) */}
+                          <button
+                            onClick={() => {
+                              if (window.confirm(`Validasi dokumen ini secara paksa sebagai Admin?`)) {
+                                if(onForceCompleteBast) onForceCompleteBast(rec.id);
+                              }
+                            }}
+                            className="text-[9px] text-blue-600 hover:text-blue-800 underline font-medium cursor-pointer"
+                          >
+                            Validasi Manual
+                          </button>
+                        </div>
                       )}
                     </td>
 
-                    {/* Actions */}
-                    <td className="p-3.5 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => onViewDetail(rec)}
-                          title="Lihat BAST Resmi"
-                          className="inline-flex items-center gap-1 px-2.5 py-1 text-slate-700 hover:text-blue-700 bg-slate-100 hover:bg-blue-50 border border-slate-200 rounded-lg text-xs font-medium transition-colors cursor-pointer"
-                        >
-                          <Eye className="w-3.5 h-3.5" />
-                          <span>Dokumen</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onPreviewEmail(rec)}
-                          title="Preview Notifikasi Email Outlook"
-                          className="inline-flex items-center gap-1 px-2.5 py-1 text-slate-600 hover:text-sky-700 bg-slate-100 hover:bg-sky-50 border border-slate-200 rounded-lg text-xs font-medium transition-colors cursor-pointer"
-                        >
-                          <Mail className="w-3.5 h-3.5" />
-                          <span>Email</span>
-                        </button>
+                    <td className="p-3.5 align-top text-right">
+                      <div className="flex flex-col items-end gap-1.5">
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => onViewDetail(rec)}
+                            title="Lihat Dokumen BAST Resmi"
+                            className="p-1.5 text-slate-500 hover:text-blue-700 bg-slate-100 hover:bg-blue-50 border border-slate-200 rounded-lg transition-colors cursor-pointer"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onPreviewEmail(rec)}
+                            title="Lihat Notifikasi Email"
+                            className="p-1.5 text-slate-500 hover:text-sky-700 bg-slate-100 hover:bg-sky-50 border border-slate-200 rounded-lg transition-colors cursor-pointer"
+                          >
+                            <Mail className="w-4 h-4" />
+                          </button>
+                        </div>
+                        {/* TOMBOL BARU: Hapus dan Edit */}
+                        <div className="flex items-center gap-1.5 mt-1 border-t border-slate-100 pt-1.5 w-full justify-end">
+                           <button
+                              onClick={() => onEditBast && onEditBast(rec)} // <-- Panggil fungsi
+                              title="Edit Data BAST"
+                              className="p-1.5 text-slate-400 hover:text-amber-600 transition-colors cursor-pointer"
+                            >
+                              <Edit className="w-3.5 h-3.5" />
+                           </button>
+                           <button
+                              onClick={() => {
+                                if (window.confirm(`PERINGATAN: Hapus permanen BAST ${rec.bastNumber}?`)) {
+                                  if(onDeleteBast) onDeleteBast(rec.id);
+                                }
+                              }}
+                              title="Hapus BAST"
+                              className="p-1.5 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                           </button>
+                        </div>
                       </div>
                     </td>
                   </tr>

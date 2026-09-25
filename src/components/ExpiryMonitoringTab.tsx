@@ -71,7 +71,7 @@ export const ExpiryMonitoringTab: React.FC<ExpiryMonitoringTabProps> = ({
   return (
     <div id="expiry-monitoring-view" className="space-y-6">
       {/* Automasi banner */}
-      <div className="bg-gradient-to-r from-blue-900 to-indigo-900 text-white rounded-2xl p-6 shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="bg-linear-to-r from-blue-900 to-indigo-900 text-white rounded-2xl p-6 shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="space-y-1">
           <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-blue-500/30 text-blue-200 text-xs font-medium border border-blue-400/30">
             <Sparkles className="w-3.5 h-3.5" />
@@ -237,16 +237,16 @@ export const ExpiryMonitoringTab: React.FC<ExpiryMonitoringTabProps> = ({
                             <Mail className="w-3.5 h-3.5" />
                             <span>Preview Email</span>
                           </button>
-                          {!item.isReminderSent && isH30 && (
-                            <button
-                              type="button"
-                              onClick={() => onTriggerReminder(bast.id, item.id)}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer"
-                            >
-                              <Send className="w-3.5 h-3.5" />
-                              <span>Kirim H-30</span>
-                            </button>
-                          )}
+                          
+                          {/* Tombol Kirim / Kirim Ulang selalu aktif untuk lisensi non-perpetual */}
+                          <button
+                            type="button"
+                            onClick={() => onTriggerReminder(bast.id, item.id)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                          >
+                            <Send className="w-3.5 h-3.5" />
+                            <span>{item.isReminderSent ? 'Kirim Ulang' : 'Kirim H-30'}</span>
+                          </button>
                         </div>
                       )}
                     </td>
