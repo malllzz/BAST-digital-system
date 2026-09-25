@@ -22,7 +22,7 @@ import { CheckCircle2, Loader2 } from 'lucide-react';
 export default function App() {
   const [records, setRecords] = useState<BastRecord[]>([]);
   const [employeeList, setEmployeeList] = useState<SimulatedUser[]>(SIMULATED_USERS);
-  
+
   // STATE LOADING UTAMA
   const [loadingData, setLoadingData] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -130,14 +130,14 @@ export default function App() {
       setCurrentUser(user);
       setCurrentRole(user.role as UserRole);
       setIsAuthenticated(true);
-      
+
       // Simpan data login ke browser agar awet saat di-refresh
       localStorage.setItem('bast_auth_user', JSON.stringify(user));
-      
+
       showToast('Login Berhasil', `Selamat datang, ${user.name}`);
       return;
     }
-    
+
     throw new Error('Email tidak ditemukan atau password salah.');
   };
 
@@ -145,21 +145,21 @@ export default function App() {
 
   // --- AKSI 1: CREATE & UPDATE BAST ---
   const handleSaveNewBast = async (newBast: BastRecord, isEdit: boolean = false) => {
-    setIsProcessing(true); 
+    setIsProcessing(true);
     try {
       const { id, items, ...bastDetails } = newBast;
-      
+
       if (isEdit) {
         const { error: updateError } = await supabase.from('bast_records').update(bastDetails).eq('id', id);
         if (updateError) throw updateError;
-        
+
         await supabase.from('license_items').delete().eq('bast_id', id);
-        const itemsToInsert = items.map(it => { 
-          const { id: itemId, ...rest } = it; 
-          return { ...rest, bast_id: id }; 
+        const itemsToInsert = items.map(it => {
+          const { id: itemId, ...rest } = it;
+          return { ...rest, bast_id: id };
         });
         await supabase.from('license_items').insert(itemsToInsert);
-        
+
         showToast('BAST Diperbarui', `Dokumen ${newBast.bastNumber} berhasil diupdate.`);
       } else {
         const { data: insertedBast, error: bastError } = await supabase
@@ -167,13 +167,13 @@ export default function App() {
           .insert([bastDetails])
           .select()
           .single();
-          
+
         if (bastError) throw bastError;
 
         if (items && items.length > 0) {
-          const itemsToInsert = items.map(item => { 
-            const { id: itemId, ...rest } = item; 
-            return { ...rest, bast_id: insertedBast.id }; 
+          const itemsToInsert = items.map(item => {
+            const { id: itemId, ...rest } = item;
+            return { ...rest, bast_id: insertedBast.id };
           });
           await supabase.from('license_items').insert(itemsToInsert);
         }
@@ -183,14 +183,14 @@ export default function App() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            to: newBast.recipientEmail, 
+            to: newBast.recipientEmail,
             subject: `Mohon Konfirmasi - BAST Lisensi ${newBast.bastNumber}`,
-            bastId: insertedBast.id, 
-            employeeName: newBast.recipientName, 
+            bastId: insertedBast.id,
+            employeeName: newBast.recipientName,
             employeeNik: newBast.recipientNIK,
-            bastNumber: newBast.bastNumber, 
+            bastNumber: newBast.bastNumber,
             softwareName: firstItem ? firstItem.softwareName : 'Multiple Licenses',
-            licenseType: firstItem ? firstItem.licenseType : '-', 
+            licenseType: firstItem ? firstItem.licenseType : '-',
             expiryDate: firstItem?.expiryDate ? firstItem.expiryDate : '-'
           })
         });
@@ -204,7 +204,7 @@ export default function App() {
       console.error("Gagal memproses BAST:", error);
       alert("Gagal memproses BAST: " + error.message);
     } finally {
-      setIsProcessing(false); 
+      setIsProcessing(false);
     }
   };
 
@@ -254,15 +254,14 @@ export default function App() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             to: targetBast.recipientEmail,
-            subject: `Reminder Perpanjangan Lisensi: ${targetItem.softwareName}`,
-            html: `
-              <div style="font-family: sans-serif; color: #333;">
-                <h2>Peringatan Masa Berlaku Lisensi</h2>
-                <p>Halo <b>${targetBast.recipientName}</b>,</p>
-                <p>Masa berlaku untuk lisensi <b>${targetItem.softwareName}</b> Anda akan segera berakhir pada tanggal <b>${targetItem.expiryDate}</b>.</p>
-                <p>Mohon segera informasikan kepada Tim IT jika Anda masih membutuhkan perpanjangan untuk lisensi perangkat lunak ini.</p>
-              </div>
-            `
+            subject: `[PENGINGAT H-30] Masa Berlaku Lisensi ${targetItem.softwareName} Akan Segera Berakhir`,
+            type: 'expiry_reminder', // <-- Penanda penting untuk Backend
+            employeeName: targetBast.recipientName,
+            employeeNik: targetBast.recipientNIK,
+            bastNumber: targetBast.bastNumber,
+            softwareName: targetItem.softwareName,
+            licenseType: targetItem.licenseType,
+            expiryDate: targetItem.expiryDate
           })
         });
       }
@@ -283,9 +282,9 @@ export default function App() {
     try {
       await supabase.from('license_items').delete().eq('bast_id', recordId);
       const { error } = await supabase.from('bast_records').delete().eq('id', recordId);
-      
+
       if (error) throw error;
-      
+
       showToast('Data Dihapus', 'Dokumen BAST berhasil dihapus permanen dari database.');
       await fetchRecords();
     } catch (err: any) {
@@ -304,10 +303,10 @@ export default function App() {
       if (error) throw error;
       showToast('Berhasil', `Karyawan ${user.name} ditambahkan.`);
       await fetchRecords();
-    } catch (err: any) { 
-      alert("Gagal menambahkan karyawan: " + err.message); 
-    } finally { 
-      setIsProcessing(false); 
+    } catch (err: any) {
+      alert("Gagal menambahkan karyawan: " + err.message);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -318,10 +317,10 @@ export default function App() {
       if (error) throw error;
       showToast('Berhasil', `Data karyawan diperbarui.`);
       await fetchRecords();
-    } catch (err: any) { 
-      alert("Gagal memperbarui data: " + err.message); 
-    } finally { 
-      setIsProcessing(false); 
+    } catch (err: any) {
+      alert("Gagal memperbarui data: " + err.message);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -332,10 +331,10 @@ export default function App() {
       if (error) throw error;
       showToast('Dihapus', `Data karyawan berhasil dihapus.`);
       await fetchRecords();
-    } catch (err: any) { 
-      alert("Gagal menghapus karyawan: " + err.message); 
-    } finally { 
-      setIsProcessing(false); 
+    } catch (err: any) {
+      alert("Gagal menghapus karyawan: " + err.message);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -346,10 +345,10 @@ export default function App() {
       if (error) throw error;
       showToast('Sukses', `${newUsers.length} data Karyawan berhasil diimpor.`);
       await fetchRecords();
-    } catch (err: any) { 
-      alert("Gagal mengimpor CSV: " + err.message); 
-    } finally { 
-      setIsProcessing(false); 
+    } catch (err: any) {
+      alert("Gagal mengimpor CSV: " + err.message);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -421,9 +420,9 @@ export default function App() {
         currentUser={currentUser}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
-        onOpenNewBast={() => { 
-          setEditingBastRecord(null); 
-          setIsNewBastOpen(true); 
+        onOpenNewBast={() => {
+          setEditingBastRecord(null);
+          setIsNewBastOpen(true);
         }}
         onOpenDocs={() => setIsDocsOpen(true)}
         pendingCount={userPendingCount}
@@ -440,18 +439,18 @@ export default function App() {
           activeTab === 'dashboard' ? (
             <PicDashboard
               records={records}
-              onOpenNewBast={() => { 
-                setEditingBastRecord(null); 
-                setIsNewBastOpen(true); 
+              onOpenNewBast={() => {
+                setEditingBastRecord(null);
+                setIsNewBastOpen(true);
               }}
               onViewDetail={setDetailRecord}
               onPreviewEmail={(rec) => setEmailModal({ isOpen: true, type: 'handover', record: rec })}
               onGoToMonitoring={() => setActiveTab('monitoring')}
-              onEditBast={(rec) => { 
-                setEditingBastRecord(rec); 
-                setIsNewBastOpen(true); 
+              onEditBast={(rec) => {
+                setEditingBastRecord(rec);
+                setIsNewBastOpen(true);
               }}
-              onDeleteBast={handleDeleteBast} 
+              onDeleteBast={handleDeleteBast}
               onForceCompleteBast={handleConfirmReceipt}
             />
           ) : activeTab === 'monitoring' ? (
@@ -461,7 +460,7 @@ export default function App() {
               onPreviewEmail={(rec, item) => setEmailModal({ isOpen: true, type: 'expiry_reminder', record: rec, item })}
             />
           ) : (
-            <EmployeeManagementTab 
+            <EmployeeManagementTab
               users={employeeList}
               onAddUser={handleAddUser}
               onUpdateUser={handleUpdateUser}
@@ -479,38 +478,38 @@ export default function App() {
         )}
       </main>
 
-      <BastFormModal 
-        initialData={editingBastRecord} 
-        isOpen={isNewBastOpen} 
-        onClose={() => { 
-          setIsNewBastOpen(false); 
-          setEditingBastRecord(null); 
-        }} 
-        nextBastNumber={nextBastNumber} 
-        onSave={handleSaveNewBast} 
-        simulatedUsers={employeeList} 
+      <BastFormModal
+        initialData={editingBastRecord}
+        isOpen={isNewBastOpen}
+        onClose={() => {
+          setIsNewBastOpen(false);
+          setEditingBastRecord(null);
+        }}
+        nextBastNumber={nextBastNumber}
+        onSave={handleSaveNewBast}
+        simulatedUsers={employeeList}
       />
-      
-      <BastDetailModal 
-        isOpen={!!detailRecord} 
-        onClose={() => setDetailRecord(null)} 
-        record={detailRecord} 
-        onConfirmReceipt={handleConfirmReceipt} 
-        isUserView={currentRole === 'user'} 
-        canConfirm={currentRole === 'user' && detailRecord?.recipientEmail.toLowerCase() === currentUser.email.toLowerCase() && detailRecord?.status === 'Menunggu Konfirmasi'} 
+
+      <BastDetailModal
+        isOpen={!!detailRecord}
+        onClose={() => setDetailRecord(null)}
+        record={detailRecord}
+        onConfirmReceipt={handleConfirmReceipt}
+        isUserView={currentRole === 'user'}
+        canConfirm={currentRole === 'user' && detailRecord?.recipientEmail.toLowerCase() === currentUser.email.toLowerCase() && detailRecord?.status === 'Menunggu Konfirmasi'}
       />
-      
-      <EmailPreviewModal 
-        isOpen={emailModal.isOpen} 
-        onClose={() => setEmailModal({ ...emailModal, isOpen: false })} 
-        type={emailModal.type} 
-        record={emailModal.record} 
-        item={emailModal.item} 
+
+      <EmailPreviewModal
+        isOpen={emailModal.isOpen}
+        onClose={() => setEmailModal({ ...emailModal, isOpen: false })}
+        type={emailModal.type}
+        record={emailModal.record}
+        item={emailModal.item}
       />
-      
-      <ArchitectureDocsModal 
-        isOpen={isDocsOpen} 
-        onClose={() => setIsDocsOpen(false)} 
+
+      <ArchitectureDocsModal
+        isOpen={isDocsOpen}
+        onClose={() => setIsDocsOpen(false)}
       />
     </div>
   );
