@@ -27,16 +27,29 @@ export default function App() {
   const [loadingData, setLoadingData] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // STATE AUTENTIKASI
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isStandaloneMode, setIsStandaloneMode] = useState(false);
+  // ==========================================
+  // STATE AUTENTIKASI (DENGAN LOCAL STORAGE)
+  // ==========================================
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return localStorage.getItem('bast_auth_user') !== null;
+  });
 
-  const [currentRole, setCurrentRole] = useState<UserRole>('pic');
-  const [currentUser, setCurrentUser] = useState<SimulatedUser>(SIMULATED_USERS[0]);
+  const [isStandaloneMode, setIsStandaloneMode] = useState(false); // <-- INI YANG SEMPAT HILANG
+
+  const [currentUser, setCurrentUser] = useState<SimulatedUser>(() => {
+    const savedUser = localStorage.getItem('bast_auth_user');
+    return savedUser ? JSON.parse(savedUser) : SIMULATED_USERS[0];
+  });
+
+  const [currentRole, setCurrentRole] = useState<UserRole>(() => {
+    const savedUser = localStorage.getItem('bast_auth_user');
+    return savedUser ? JSON.parse(savedUser).role as UserRole : 'pic';
+  });
+
   const [activeTab, setActiveTab] = useState<string>('dashboard');
 
   const [isNewBastOpen, setIsNewBastOpen] = useState(false);
-  const [editingBastRecord, setEditingBastRecord] = useState<BastRecord | null>(null); // State Baru untuk Edit BAST
+  const [editingBastRecord, setEditingBastRecord] = useState<BastRecord | null>(null);
 
   const [detailRecord, setDetailRecord] = useState<BastRecord | null>(null);
   const [isDocsOpen, setIsDocsOpen] = useState(false);
@@ -98,7 +111,8 @@ export default function App() {
             nik: targetRecord.recipientNIK,
             email: targetRecord.recipientEmail,
             department: targetRecord.department,
-            role: 'user'
+            role: 'user',
+            password: ''
           });
           setDetailRecord(targetRecord);
         }
@@ -106,7 +120,7 @@ export default function App() {
     }
   }, [records]);
 
-  // FUNGSI LOGIN
+  // FUNGSI LOGIN DENGAN PENYIMPANAN SESI
   const handleLogin = async (email: string, pass: string) => {
     await new Promise(resolve => setTimeout(resolve, 800));
 
@@ -116,6 +130,10 @@ export default function App() {
       setCurrentUser(user);
       setCurrentRole(user.role as UserRole);
       setIsAuthenticated(true);
+      
+      // Simpan data login ke browser agar awet saat di-refresh
+      localStorage.setItem('bast_auth_user', JSON.stringify(user));
+      
       showToast('Login Berhasil', `Selamat datang, ${user.name}`);
       return;
     }
@@ -132,11 +150,9 @@ export default function App() {
       const { id, items, ...bastDetails } = newBast;
       
       if (isEdit) {
-        // UPDATE (Edit Mode)
         const { error: updateError } = await supabase.from('bast_records').update(bastDetails).eq('id', id);
         if (updateError) throw updateError;
         
-        // Hapus lisensi lama, masukkan yang baru
         await supabase.from('license_items').delete().eq('bast_id', id);
         const itemsToInsert = items.map(it => { 
           const { id: itemId, ...rest } = it; 
@@ -146,7 +162,6 @@ export default function App() {
         
         showToast('BAST Diperbarui', `Dokumen ${newBast.bastNumber} berhasil diupdate.`);
       } else {
-        // INSERT (Buat Baru)
         const { data: insertedBast, error: bastError } = await supabase
           .from('bast_records')
           .insert([bastDetails])
@@ -163,7 +178,6 @@ export default function App() {
           await supabase.from('license_items').insert(itemsToInsert);
         }
 
-        // Kirim email notifikasi
         const firstItem = items && items.length > 0 ? items[0] : null;
         await fetch('/api/send-email', {
           method: 'POST',
@@ -416,6 +430,8 @@ export default function App() {
         onLogout={() => {
           setIsAuthenticated(false);
           setActiveTab('dashboard');
+          // Hapus sesi login dari browser saat Logout
+          localStorage.removeItem('bast_auth_user');
         }}
       />
 
