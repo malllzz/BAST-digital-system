@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Search, Filter, FileText, CheckCircle2, Clock, AlertTriangle, Eye, Mail, Download, Edit, Trash2, Plus } from 'lucide-react';
 import { BastRecord, BastStatus, LicenseType } from '../types';
 import { calculateDaysRemaining } from '../data/initialData';
+import * as XLSX from 'xlsx'; // <-- Tambahan library Excel
 
 interface PicDashboardProps {
   records: BastRecord[];
@@ -11,7 +12,7 @@ interface PicDashboardProps {
   onGoToMonitoring: () => void;
   onDeleteBast?: (id: string) => void;
   onForceCompleteBast?: (id: string) => void;
-  onEditBast?: (record: BastRecord) => void; // <-- Tambahan untuk Edit
+  onEditBast?: (record: BastRecord) => void;
 }
 
 export const PicDashboard: React.FC<PicDashboardProps> = ({
@@ -22,7 +23,7 @@ export const PicDashboard: React.FC<PicDashboardProps> = ({
   onGoToMonitoring,
   onDeleteBast,
   onForceCompleteBast,
-  onEditBast // <-- Tambahan untuk Edit
+  onEditBast
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -68,51 +69,58 @@ export const PicDashboard: React.FC<PicDashboardProps> = ({
     });
   }, [records, searchTerm, statusFilter, typeFilter]);
 
-  // FUNGSI BARU: Export Data ke format CSV
-  const handleExportCSV = () => {
+  // FUNGSI BARU: Export Data ke format Excel (.xlsx)
+  const handleExportExcel = () => {
     if (filteredRecords.length === 0) {
       alert("Tidak ada data untuk diekspor.");
       return;
     }
 
-    // Siapkan Header
-    let csvContent = "Nomor BAST,Penerima,NIK,Email,Departemen,Tgl Terbit,Status,Daftar Software (Nama - Tipe - Expired)\n";
-
-    // Format Data
-    filteredRecords.forEach(rec => {
-      // Gabungkan multi-item menjadi satu string
+    // Siapkan struktur data untuk Excel
+    const excelData = filteredRecords.map(rec => {
       const softwareList = rec.items.map(it => 
         `${it.softwareName} (${it.licenseType} - ${it.expiryDate || 'N/A'})`
       ).join(" | ");
 
-      const row = [
-        rec.bastNumber,
-        `"${rec.recipientName}"`,
-        rec.recipientNIK,
-        rec.recipientEmail,
-        `"${rec.department}"`,
-        new Date(rec.createdAt).toLocaleDateString('id-ID'),
-        rec.status,
-        `"${softwareList}"`
-      ].join(",");
-      
-      csvContent += row + "\n";
+      return {
+        "Nomor BAST": rec.bastNumber,
+        "Penerima": rec.recipientName,
+        "NIK": rec.recipientNIK,
+        "Email": rec.recipientEmail,
+        "Departemen": rec.department,
+        "Tanggal Terbit": new Date(rec.createdAt).toLocaleDateString('id-ID'),
+        "Status": rec.status,
+        "Daftar Software (Nama - Tipe - Expired)": softwareList
+      };
     });
 
-    // Buat Blob dan Download Trigger
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute("download", `Data_BAST_IT_Asset_${new Date().getTime()}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    // Buat Worksheet dari JSON
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+
+    // Atur lebar kolom agar rapi
+    const wscols = [
+      { wch: 22 }, // Nomor BAST
+      { wch: 25 }, // Penerima
+      { wch: 15 }, // NIK
+      { wch: 30 }, // Email
+      { wch: 25 }, // Departemen
+      { wch: 15 }, // Tgl Terbit
+      { wch: 20 }, // Status
+      { wch: 60 }  // Daftar Software
+    ];
+    worksheet['!cols'] = wscols;
+
+    // Buat Workbook dan tambahkan Worksheet
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Data BAST");
+
+    // Generate file dan trigger download
+    XLSX.writeFile(workbook, `Data_BAST_IT_Asset_${new Date().getTime()}.xlsx`);
   };
 
   return (
     <div id="pic-dashboard-view" className="space-y-6">
-      {/* Metric Cards (Tetap Sama) */}
+      {/* Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total BAST */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
@@ -203,14 +211,14 @@ export const PicDashboard: React.FC<PicDashboardProps> = ({
             <option value="Perpetual">Perpetual</option>
           </select>
 
-          {/* TOMBOL BARU: Export Excel/CSV */}
+          {/* TOMBOL EXPORT DIUBAH KE EXCEL */}
           <button
             type="button"
-            onClick={handleExportCSV}
+            onClick={handleExportExcel}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
           >
             <Download className="w-3.5 h-3.5" />
-            <span>Export CSV</span>
+            <span>Export Excel</span>
           </button>
 
           <button
@@ -298,7 +306,6 @@ export const PicDashboard: React.FC<PicDashboardProps> = ({
                             <Clock className="w-3 h-3 text-amber-600 animate-pulse" />
                             Pending
                           </span>
-                          {/* TOMBOL BARU: Validasi Paksa (Hanya jika belum selesai) */}
                           <button
                             onClick={() => {
                               if (window.confirm(`Validasi dokumen ini secara paksa sebagai Admin?`)) {
@@ -333,10 +340,9 @@ export const PicDashboard: React.FC<PicDashboardProps> = ({
                             <Mail className="w-4 h-4" />
                           </button>
                         </div>
-                        {/* TOMBOL BARU: Hapus dan Edit */}
                         <div className="flex items-center gap-1.5 mt-1 border-t border-slate-100 pt-1.5 w-full justify-end">
                            <button
-                              onClick={() => onEditBast && onEditBast(rec)} // <-- Panggil fungsi
+                              onClick={() => onEditBast && onEditBast(rec)}
                               title="Edit Data BAST"
                               className="p-1.5 text-slate-400 hover:text-amber-600 transition-colors cursor-pointer"
                             >
