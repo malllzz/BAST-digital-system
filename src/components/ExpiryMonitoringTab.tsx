@@ -1,13 +1,26 @@
 import React, { useState, useMemo } from 'react';
-import { AlertTriangle, CheckCircle2, Clock, Mail, Send, Sparkles, Filter, Calendar, User, Search } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Clock, Mail, Send, Sparkles, Search, ArrowDownUp } from 'lucide-react';
 import { BastRecord, LicenseItem } from '../types';
-import { calculateDaysRemaining } from '../data/initialData';
 
 interface ExpiryMonitoringTabProps {
   records: BastRecord[];
   onTriggerReminder: (bastId: string, itemId: string) => void;
   onPreviewEmail: (record: BastRecord, item: LicenseItem) => void;
 }
+
+// Fungsi helper untuk menghitung sisa hari secara realtime (Berdasarkan hari ini)
+const calculateRealtimeDaysRemaining = (expiryDate?: string) => {
+  if (!expiryDate) return null;
+  
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Reset waktu ke tengah malam agar akurat
+
+  const exp = new Date(expiryDate);
+  exp.setHours(0, 0, 0, 0);
+
+  const diffTime = exp.getTime() - today.getTime();
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+};
 
 export const ExpiryMonitoringTab: React.FC<ExpiryMonitoringTabProps> = ({
   records,
@@ -16,8 +29,14 @@ export const ExpiryMonitoringTab: React.FC<ExpiryMonitoringTabProps> = ({
 }) => {
   const [filterType, setFilterType] = useState<'h30' | 'expiring' | 'all'>('h30');
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // State untuk sorting (asc = Terdekat ke expired, desc = Terlama ke expired)
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
-  // Flatten items with their parent BAST record
+  // State untuk menyimpan status automasi per item (Key: itemId, Value: boolean true/false)
+  const [autoEnabledMap, setAutoEnabledMap] = useState<Record<string, boolean>>({});
+
+  // Flatten items dengan parent BAST record dan kalkulasi hari yang realtime
   const licenseRows = useMemo(() => {
     const list: {
       bast: BastRecord;
@@ -28,7 +47,7 @@ export const ExpiryMonitoringTab: React.FC<ExpiryMonitoringTabProps> = ({
 
     records.forEach((bast) => {
       bast.items.forEach((item) => {
-        const days = calculateDaysRemaining(item.expiryDate);
+        const days = calculateRealtimeDaysRemaining(item.expiryDate);
         const isH30 = item.licenseType !== 'Perpetual' && days !== null && days >= 0 && days <= 30;
         list.push({
           bast,
@@ -42,9 +61,10 @@ export const ExpiryMonitoringTab: React.FC<ExpiryMonitoringTabProps> = ({
     return list;
   }, [records]);
 
-  const filteredRows = useMemo(() => {
-    return licenseRows.filter((row) => {
-      // Search
+  // Filter & Search & Sort
+  const filteredAndSortedRows = useMemo(() => {
+    let result = licenseRows.filter((row) => {
+      // 1. Search
       const query = searchQuery.toLowerCase();
       const matchSearch =
         row.item.softwareName.toLowerCase().includes(query) ||
@@ -55,21 +75,60 @@ export const ExpiryMonitoringTab: React.FC<ExpiryMonitoringTabProps> = ({
 
       if (!matchSearch) return false;
 
-      // Filter
-      if (filterType === 'h30') {
-        return row.isH30;
-      }
-      if (filterType === 'expiring') {
-        return row.item.licenseType !== 'Perpetual';
-      }
+      // 2. Filter
+      if (filterType === 'h30') return row.isH30;
+      if (filterType === 'expiring') return row.item.licenseType !== 'Perpetual';
+      
       return true;
     });
-  }, [licenseRows, searchQuery, filterType]);
+
+    // 3. Sort
+    result.sort((a, b) => {
+      // Perpetual selalu taruh di paling bawah karena tidak punya expired
+      if (a.item.licenseType === 'Perpetual' && b.item.licenseType === 'Perpetual') return 0;
+      if (a.item.licenseType === 'Perpetual') return 1;
+      if (b.item.licenseType === 'Perpetual') return -1;
+
+      const daysA = a.daysRemaining ?? Infinity;
+      const daysB = b.daysRemaining ?? Infinity;
+
+      if (sortOrder === 'asc') return daysA - daysB; // Terdekat duluan
+      return daysB - daysA; // Terlama duluan
+    });
+
+    return result;
+  }, [licenseRows, searchQuery, filterType, sortOrder]);
 
   const h30Count = licenseRows.filter((r) => r.isH30).length;
 
+  // --- Handlers untuk Toggle Automasi ---
+  
+  const handleToggleIndividual = (itemId: string) => {
+    setAutoEnabledMap(prev => ({
+      ...prev,
+      [itemId]: !prev[itemId]
+    }));
+  };
+
+  // Cek apakah semua item yang sedang difilter (dan bukan perpetual) sudah diaktifkan automasinya
+  const nonPerpetualVisibleItems = filteredAndSortedRows.filter(row => row.item.licenseType !== 'Perpetual');
+  const isAllEnabled = nonPerpetualVisibleItems.length > 0 && nonPerpetualVisibleItems.every(row => autoEnabledMap[row.item.id]);
+
+  const handleToggleAll = () => {
+    const newMap = { ...autoEnabledMap };
+    // Jika semua sudah aktif, maka matikan semua. Jika belum, aktifkan semua.
+    const targetState = !isAllEnabled; 
+    
+    nonPerpetualVisibleItems.forEach(row => {
+      newMap[row.item.id] = targetState;
+    });
+    
+    setAutoEnabledMap(newMap);
+  };
+
   return (
     <div id="expiry-monitoring-view" className="space-y-6">
+      
       {/* Automasi banner */}
       <div className="bg-linear-to-r from-blue-900 to-indigo-900 text-white rounded-2xl p-6 shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="space-y-1">
@@ -79,9 +138,8 @@ export const ExpiryMonitoringTab: React.FC<ExpiryMonitoringTabProps> = ({
           </div>
           <h2 className="text-lg font-bold">Monitoring & Reminder Masa Berlaku Lisensi (H-30)</h2>
           <p className="text-xs text-blue-200/90 leading-relaxed max-w-2xl">
-            Sistem secara otomatis mengevaluasi seluruh tanggal kedaluwarsa lisensi software. Pada H-30 sebelum masa
-            berlaku habis, notifikasi pengingat perpanjangan dikirimkan langsung ke alamat email user yang tercatat di
-            BAST.
+            Sistem secara otomatis mengevaluasi seluruh tanggal kedaluwarsa lisensi software secara realtime. Pada H-30 sebelum masa
+            berlaku habis, notifikasi pengingat perpanjangan dikirimkan secara otomatis jika status automasi aktif.
           </p>
         </div>
 
@@ -91,52 +149,85 @@ export const ExpiryMonitoringTab: React.FC<ExpiryMonitoringTabProps> = ({
         </div>
       </div>
 
-      {/* Filter and search */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
-        <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Cari software, user, NIK..."
-            className="w-full text-xs pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-blue-500 focus:bg-white"
-          />
+      {/* Area Filter, Search, Global Toggle & Sorting */}
+      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+        
+        {/* Baris Atas: Search & Global Toggle */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+          
+          <div className="relative w-full sm:w-96">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Cari software, user, NIK, No BAST..."
+              className="w-full text-xs pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+            />
+          </div>
+
+          <div 
+            onClick={handleToggleAll}
+            className={`flex items-center gap-3 px-4 py-2 rounded-xl cursor-pointer border transition-colors ${
+              isAllEnabled 
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-800' 
+                : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            <div className="text-xs font-semibold select-none">Aktifkan Semua Kirim Email Reminder H-30</div>
+            <div className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${isAllEnabled ? 'bg-emerald-500' : 'bg-slate-300'}`}>
+              <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${isAllEnabled ? 'translate-x-4.5' : 'translate-x-1'}`} />
+            </div>
+          </div>
         </div>
 
-        <div className="flex items-center gap-1.5 w-full sm:w-auto justify-end">
+        <div className="border-t border-slate-100 pt-3"></div>
+
+        {/* Baris Bawah: Filter Buttons & Sort */}
+        <div className="flex flex-col md:flex-row items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-1.5 w-full md:w-auto">
+            <button
+              type="button"
+              onClick={() => setFilterType('h30')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
+                filterType === 'h30'
+                  ? 'bg-amber-600 text-white'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              Peringatan H-30 ({h30Count})
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterType('expiring')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
+                filterType === 'expiring'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              Semua Tahunan/Bulanan
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterType('all')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
+                filterType === 'all'
+                  ? 'bg-slate-800 text-white'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              Semua Termasuk Perpetual
+            </button>
+          </div>
+
           <button
             type="button"
-            onClick={() => setFilterType('h30')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
-              filterType === 'h30'
-                ? 'bg-amber-600 text-white'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-            }`}
+            onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+            className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-xl text-xs font-semibold border border-indigo-100 transition-colors cursor-pointer w-full md:w-auto justify-center"
           >
-            Peringatan H-30 ({h30Count})
-          </button>
-          <button
-            type="button"
-            onClick={() => setFilterType('expiring')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
-              filterType === 'expiring'
-                ? 'bg-blue-600 text-white'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-            }`}
-          >
-            Semua Tahunan/Bulanan
-          </button>
-          <button
-            type="button"
-            onClick={() => setFilterType('all')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
-              filterType === 'all'
-                ? 'bg-slate-800 text-white'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-            }`}
-          >
-            Semua Termasuk Perpetual
+            <ArrowDownUp className="w-3.5 h-3.5" />
+            <span>Urutkan: {sortOrder === 'asc' ? 'Terdekat Expired' : 'Terlama Expired'}</span>
           </button>
         </div>
       </div>
@@ -151,107 +242,123 @@ export const ExpiryMonitoringTab: React.FC<ExpiryMonitoringTabProps> = ({
                 <th className="p-3.5">Karyawan Penerima (NIK)</th>
                 <th className="p-3.5">No. BAST</th>
                 <th className="p-3.5">Tipe & Tanggal Expired</th>
-                <th className="p-3.5">Sisa Hari</th>
-                <th className="p-3.5">Status Reminder H-30</th>
-                <th className="p-3.5 text-right">Aksi Simulasi</th>
+                <th className="p-3.5">Sisa Hari (Realtime)</th>
+                <th className="p-3.5 text-right min-w-60">Automasi & Aksi Email</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredRows.length === 0 ? (
+              {filteredAndSortedRows.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-slate-400">
+                  <td colSpan={6} className="text-center py-12 text-slate-400">
                     Tidak ada data lisensi yang sesuai dengan kriteria filter.
                   </td>
                 </tr>
               ) : (
-                filteredRows.map(({ bast, item, daysRemaining, isH30 }) => (
-                  <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="p-3.5">
-                      <div className="font-semibold text-slate-900">{item.softwareName}</div>
-                      <div className="text-[11px] font-mono text-slate-500">{item.licenseKeyAccount}</div>
-                    </td>
+                filteredAndSortedRows.map(({ bast, item, daysRemaining, isH30 }) => {
+                  const isAutoEnabled = autoEnabledMap[item.id] || false;
+                  
+                  return (
+                    <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="p-3.5 align-top">
+                        <div className="font-semibold text-slate-900">{item.softwareName}</div>
+                        <div className="text-[11px] font-mono text-slate-500">{item.licenseKeyAccount}</div>
+                      </td>
 
-                    <td className="p-3.5">
-                      <div className="font-medium text-slate-900">{bast.recipientName}</div>
-                      <div className="text-[11px] text-slate-500">
-                        NIK: <span className="font-mono font-semibold text-slate-700">{bast.recipientNIK}</span>
-                      </div>
-                      <div className="text-[10px] text-slate-400">{bast.recipientEmail}</div>
-                    </td>
-
-                    <td className="p-3.5 font-mono text-slate-600 font-medium">{bast.bastNumber}</td>
-
-                    <td className="p-3.5">
-                      <div className="font-medium text-slate-800">{item.licenseType}</div>
-                      <div className="text-[11px] text-slate-500">
-                        {item.licenseType === 'Perpetual' ? 'Seumur Hidup' : item.expiryDate}
-                      </div>
-                    </td>
-
-                    {/* Sisa Hari */}
-                    <td className="p-3.5 whitespace-nowrap">
-                      {item.licenseType === 'Perpetual' ? (
-                        <span className="text-slate-400 text-xs">-</span>
-                      ) : daysRemaining !== null && daysRemaining <= 30 && daysRemaining >= 0 ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-700 border border-rose-200">
-                          <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
-                          {daysRemaining} Hari Lagi
-                        </span>
-                      ) : daysRemaining !== null && daysRemaining > 30 ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-slate-100 text-slate-700">
-                          {daysRemaining} Hari Lagi
-                        </span>
-                      ) : (
-                        <span className="text-rose-600 font-bold">Kedaluwarsa</span>
-                      )}
-                    </td>
-
-                    {/* Status Reminder */}
-                    <td className="p-3.5 whitespace-nowrap">
-                      {item.licenseType === 'Perpetual' ? (
-                        <span className="text-slate-400 text-xs">Tidak Diperlukan</span>
-                      ) : item.isReminderSent ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-semibold">
-                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                          Email Terkirim
-                        </span>
-                      ) : isH30 ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[11px] font-semibold animate-pulse">
-                          <Clock className="w-3 h-3 text-amber-600" />
-                          Siap Dikirim
-                        </span>
-                      ) : (
-                        <span className="text-slate-400 text-xs">Menunggu H-30</span>
-                      )}
-                    </td>
-
-                    {/* Action */}
-                    <td className="p-3.5 text-right whitespace-nowrap">
-                      {item.licenseType !== 'Perpetual' && (
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => onPreviewEmail(bast, item)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 text-sky-700 hover:text-sky-800 bg-sky-50 hover:bg-sky-100 rounded-lg text-xs font-medium transition-colors cursor-pointer"
-                          >
-                            <Mail className="w-3.5 h-3.5" />
-                            <span>Preview Email</span>
-                          </button>
-                          
-                          {/* Tombol Kirim / Kirim Ulang selalu aktif untuk lisensi non-perpetual */}
-                          <button
-                            type="button"
-                            onClick={() => onTriggerReminder(bast.id, item.id)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer"
-                          >
-                            <Send className="w-3.5 h-3.5" />
-                            <span>{item.isReminderSent ? 'Kirim Ulang' : 'Kirim H-30'}</span>
-                          </button>
+                      <td className="p-3.5 align-top">
+                        <div className="font-medium text-slate-900">{bast.recipientName}</div>
+                        <div className="text-[11px] text-slate-500">
+                          NIK: <span className="font-mono font-semibold text-slate-700">{bast.recipientNIK}</span>
                         </div>
-                      )}
-                    </td>
-                  </tr>
-                ))
+                        <div className="text-[10px] text-slate-400">{bast.recipientEmail}</div>
+                      </td>
+
+                      <td className="p-3.5 align-top font-mono text-slate-600 font-medium">{bast.bastNumber}</td>
+
+                      <td className="p-3.5 align-top">
+                        <div className="font-medium text-slate-800">{item.licenseType}</div>
+                        <div className="text-[11px] text-slate-500">
+                          {item.licenseType === 'Perpetual' ? 'Seumur Hidup' : item.expiryDate}
+                        </div>
+                      </td>
+
+                      {/* Sisa Hari Realtime */}
+                      <td className="p-3.5 align-top whitespace-nowrap">
+                        {item.licenseType === 'Perpetual' ? (
+                          <span className="text-slate-400 text-xs">-</span>
+                        ) : daysRemaining !== null && daysRemaining <= 30 && daysRemaining >= 0 ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-700 border border-rose-200">
+                            <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
+                            {daysRemaining} Hari Lagi
+                          </span>
+                        ) : daysRemaining !== null && daysRemaining < 0 ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                            Terlewat {Math.abs(daysRemaining)} Hari
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-slate-100 text-slate-700">
+                            {daysRemaining} Hari Lagi
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Aksi & Automasi */}
+                      <td className="p-3.5 align-top text-right">
+                        {item.licenseType !== 'Perpetual' ? (
+                          <div className="flex flex-col items-end gap-2.5">
+                            {/* Toggle Automasi Individual */}
+                            <div className="flex items-center justify-end gap-2">
+                              <span className={`text-[10px] font-medium ${isAutoEnabled ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                {isAutoEnabled ? 'Automasi Aktif' : 'Automasi Mati'}
+                              </span>
+                              <div 
+                                onClick={() => handleToggleIndividual(item.id)}
+                                className={`relative inline-flex h-5 w-9 items-center rounded-full cursor-pointer transition-colors ${isAutoEnabled ? 'bg-emerald-500' : 'bg-slate-300'}`}
+                              >
+                                <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${isAutoEnabled ? 'translate-x-4.5' : 'translate-x-1'}`} />
+                              </div>
+                            </div>
+
+                            {/* Tombol Aksi Manual */}
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => onPreviewEmail(bast, item)}
+                                className="inline-flex items-center gap-1 px-2 py-1 text-sky-700 hover:text-sky-800 bg-sky-50 hover:bg-sky-100 rounded-md text-[11px] font-medium transition-colors cursor-pointer"
+                              >
+                                <Mail className="w-3.5 h-3.5" />
+                                <span>Preview</span>
+                              </button>
+                              
+                              <button
+                                type="button"
+                                onClick={() => onTriggerReminder(bast.id, item.id)}
+                                className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold transition-colors cursor-pointer shadow-xs ${
+                                  item.isReminderSent 
+                                    ? 'bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200' 
+                                    : 'bg-amber-600 text-white hover:bg-amber-700'
+                                }`}
+                              >
+                                {item.isReminderSent ? (
+                                  <>
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                    <span>Kirim Ulang</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Send className="w-3 h-3" />
+                                    <span>Kirim Manual</span>
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-slate-400 text-xs italic">Tidak Berlaku</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

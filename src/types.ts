@@ -10,13 +10,17 @@ export interface LicenseItem {
   startDate: string;
   expiryDate?: string;
   isReminderSent?: boolean;
+  itemNotes?: string;
 }
 
 export interface BastRecord {
   id: string;
-  bastNumber: string; // e.g. BAST-IT/2026/09/01
+  bastNumber: string;
+  poNumber?: string;
+  notaNumber?: string;
+  isPoPending?: boolean;
   recipientName: string;
-  recipientNIK: string; // Nomor Induk Karyawan
+  recipientNIK: string;
   recipientEmail: string;
   department: string;
   picName: string;

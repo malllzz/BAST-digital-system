@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Filter, FileText, CheckCircle2, Clock, AlertTriangle, Eye, Mail, Download, Edit, Trash2, Plus } from 'lucide-react';
+import { Search, Filter, FileText, CheckCircle2, Clock, AlertTriangle, Eye, Mail, Download, Edit, Trash2, Plus, ArrowUpDown } from 'lucide-react';
 import { BastRecord, BastStatus, LicenseType } from '../types';
 import { calculateDaysRemaining } from '../data/initialData';
-import * as XLSX from 'xlsx'; // <-- Tambahan library Excel
+import * as XLSX from 'xlsx';
 
 interface PicDashboardProps {
   records: BastRecord[];
@@ -28,6 +28,10 @@ export const PicDashboard: React.FC<PicDashboardProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [poFilter, setPoFilter] = useState<string>('all'); // 'all', 'has_po', 'no_po'
+  const [yearFilter, setYearFilter] = useState<string>('all');
+  // Opsi Sort: 'date_desc', 'date_asc', 'name_asc', 'name_desc'
+  const [sortOption, setSortOption] = useState<string>('date_desc'); 
 
   // Metrics calculation
   const totalBast = records.length;
@@ -49,41 +53,86 @@ export const PicDashboard: React.FC<PicDashboardProps> = ({
     return count;
   }, [records]);
 
-  const filteredRecords = useMemo(() => {
-    return records.filter((record) => {
+  // Ekstrak daftar tahun unik dari data untuk dropdown filter tahun
+  const availableYears = useMemo(() => {
+    const years = new Set<string>();
+    records.forEach(rec => {
+      const year = new Date(rec.createdAt).getFullYear().toString();
+      years.add(year);
+    });
+    return Array.from(years).sort((a, b) => (a > b ? -1 : 1)); // Urutkan tahun menurun
+  }, [records]);
+
+  // Menerapkan Filter dan Sorting
+  const filteredAndSortedRecords = useMemo(() => {
+    let result = records.filter((record) => {
+      // Pencarian Teks
       const query = searchTerm.toLowerCase();
       const matchSearch =
         record.bastNumber.toLowerCase().includes(query) ||
         record.recipientName.toLowerCase().includes(query) ||
         record.recipientNIK.toLowerCase().includes(query) ||
         record.department.toLowerCase().includes(query) ||
+        (record.poNumber && record.poNumber.toLowerCase().includes(query)) ||
+        (record.notaNumber && record.notaNumber.toLowerCase().includes(query)) ||
         record.items.some((it) => it.softwareName.toLowerCase().includes(query));
 
       if (!matchSearch) return false;
+
+      // Filter Status
       if (statusFilter !== 'all' && record.status !== statusFilter) return false;
+
+      // Filter Tipe Lisensi
       if (typeFilter !== 'all') {
         const hasType = record.items.some((it) => it.licenseType === typeFilter);
         if (!hasType) return false;
       }
+
+      // Filter PO
+      if (poFilter === 'has_po' && (!record.poNumber || record.poNumber.trim() === '')) return false;
+      if (poFilter === 'no_po' && (record.poNumber && record.poNumber.trim() !== '')) return false;
+
+      // Filter Tahun
+      if (yearFilter !== 'all') {
+        const recordYear = new Date(record.createdAt).getFullYear().toString();
+        if (recordYear !== yearFilter) return false;
+      }
+
       return true;
     });
-  }, [records, searchTerm, statusFilter, typeFilter]);
 
-  // FUNGSI BARU: Export Data ke format Excel (.xlsx)
+    // Sorting berdasarkan pilihan dropdown
+    result = result.sort((a, b) => {
+      if (sortOption === 'date_desc') {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      } else if (sortOption === 'date_asc') {
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      } else if (sortOption === 'name_asc') {
+        return a.recipientName.localeCompare(b.recipientName);
+      } else if (sortOption === 'name_desc') {
+        return b.recipientName.localeCompare(a.recipientName);
+      }
+      return 0;
+    });
+
+    return result;
+  }, [records, searchTerm, statusFilter, typeFilter, poFilter, yearFilter, sortOption]);
+
   const handleExportExcel = () => {
-    if (filteredRecords.length === 0) {
+    if (filteredAndSortedRecords.length === 0) {
       alert("Tidak ada data untuk diekspor.");
       return;
     }
 
-    // Siapkan struktur data untuk Excel
-    const excelData = filteredRecords.map(rec => {
+    const excelData = filteredAndSortedRecords.map(rec => {
       const softwareList = rec.items.map(it => 
         `${it.softwareName} (${it.licenseType} - ${it.expiryDate || 'N/A'})`
       ).join(" | ");
 
       return {
         "Nomor BAST": rec.bastNumber,
+        "Nomor PO": rec.poNumber || (rec.isPoPending ? "PO Menyusul" : "No. PO Belum Ada"),
+        "Nomor Nota": rec.notaNumber || "Tidak Ada Nota",
         "Penerima": rec.recipientName,
         "NIK": rec.recipientNIK,
         "Email": rec.recipientEmail,
@@ -94,27 +143,23 @@ export const PicDashboard: React.FC<PicDashboardProps> = ({
       };
     });
 
-    // Buat Worksheet dari JSON
     const worksheet = XLSX.utils.json_to_sheet(excelData);
-
-    // Atur lebar kolom agar rapi
     const wscols = [
-      { wch: 22 }, // Nomor BAST
-      { wch: 25 }, // Penerima
-      { wch: 15 }, // NIK
-      { wch: 30 }, // Email
-      { wch: 25 }, // Departemen
-      { wch: 15 }, // Tgl Terbit
-      { wch: 20 }, // Status
-      { wch: 60 }  // Daftar Software
+      { wch: 22 },
+      { wch: 20 },
+      { wch: 20 },
+      { wch: 25 },
+      { wch: 15 },
+      { wch: 30 },
+      { wch: 25 },
+      { wch: 15 },
+      { wch: 20 },
+      { wch: 60 } 
     ];
     worksheet['!cols'] = wscols;
 
-    // Buat Workbook dan tambahkan Worksheet
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Data BAST");
-
-    // Generate file dan trigger download
     XLSX.writeFile(workbook, `Data_BAST_IT_Asset_${new Date().getTime()}.xlsx`);
   };
 
@@ -122,7 +167,6 @@ export const PicDashboard: React.FC<PicDashboardProps> = ({
     <div id="pic-dashboard-view" className="space-y-6">
       {/* Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total BAST */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
             <p className="text-xs font-medium text-slate-500">Total BAST Diterbitkan</p>
@@ -134,7 +178,6 @@ export const PicDashboard: React.FC<PicDashboardProps> = ({
           </div>
         </div>
 
-        {/* Menunggu Konfirmasi */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
             <p className="text-xs font-medium text-slate-500">Menunggu Konfirmasi User</p>
@@ -146,7 +189,6 @@ export const PicDashboard: React.FC<PicDashboardProps> = ({
           </div>
         </div>
 
-        {/* Selesai / Tervalidasi */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
             <p className="text-xs font-medium text-slate-500">BAST Selesai (Tervalidasi)</p>
@@ -158,7 +200,6 @@ export const PicDashboard: React.FC<PicDashboardProps> = ({
           </div>
         </div>
 
-        {/* Expiry Alerts */}
         <div
           onClick={onGoToMonitoring}
           className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between cursor-pointer hover:border-amber-300 transition-colors group"
@@ -176,58 +217,104 @@ export const PicDashboard: React.FC<PicDashboardProps> = ({
         </div>
       </div>
 
-      {/* Control & Filter Bar */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row items-center justify-between gap-3">
-        <div className="relative w-full md:w-80">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Cari No. BAST, NIK, Nama, Software..."
-            className="w-full text-xs pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-blue-500 focus:bg-white transition-all"
-          />
+      {/* Control & Filter Bar (2 Baris) */}
+      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col gap-4">
+        
+        {/* BARIS 1: Pencarian, Filter & Sorting */}
+        <div className="flex flex-col xl:flex-row items-center justify-between gap-3">
+          {/* Kolom Pencarian */}
+          <div className="relative w-full xl:max-w-xs shrink-0">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Cari No. BAST, PO, NIK, Nama..."
+              className="w-full text-xs pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-blue-500 focus:bg-white transition-all"
+            />
+          </div>
+
+          {/* Kolom Filter & Sort */}
+          <div className="flex flex-wrap items-center gap-2 w-full xl:w-auto xl:justify-end">
+            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2 py-1.5">
+              <Filter className="w-3.5 h-3.5 text-slate-500" />
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="text-xs bg-transparent font-medium text-slate-700 focus:outline-none"
+              >
+                <option value="all">Status (Semua)</option>
+                <option value="Menunggu Konfirmasi">Pending</option>
+                <option value="Selesai">Selesai</option>
+              </select>
+            </div>
+
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="text-xs bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 font-medium text-slate-700 focus:outline-none"
+            >
+              <option value="all">Tipe Lisensi (Semua)</option>
+              <option value="Tahunan">Tahunan</option>
+              <option value="Bulanan">Bulanan</option>
+              <option value="Perpetual">Perpetual</option>
+            </select>
+
+            <select
+              value={poFilter}
+              onChange={(e) => setPoFilter(e.target.value)}
+              className="text-xs bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 font-medium text-slate-700 focus:outline-none"
+            >
+              <option value="all">Data PO (Semua)</option>
+              <option value="has_po">Sudah Ada PO</option>
+              <option value="no_po">PO Belum Ada / Menyusul</option>
+            </select>
+
+            <select
+              value={yearFilter}
+              onChange={(e) => setYearFilter(e.target.value)}
+              className="text-xs bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 font-medium text-slate-700 focus:outline-none"
+            >
+              <option value="all">Tahun (Semua)</option>
+              {availableYears.map(year => (
+                <option key={year} value={year}>{year}</option>
+              ))}
+            </select>
+
+            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2 py-1.5">
+              <ArrowUpDown className="w-3.5 h-3.5 text-slate-500" />
+              <select
+                value={sortOption}
+                onChange={(e) => setSortOption(e.target.value)}
+                className="text-xs bg-transparent font-medium text-slate-700 focus:outline-none"
+              >
+                <option value="date_desc">Terbaru</option>
+                <option value="date_asc">Terlama</option>
+                <option value="name_asc">Abjad Nama (A-Z)</option>
+                <option value="name_desc">Abjad Nama (Z-A)</option>
+              </select>
+            </div>
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="text-xs bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 font-medium text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          >
-            <option value="all">Semua Status</option>
-            <option value="Menunggu Konfirmasi">Menunggu Konfirmasi</option>
-            <option value="Selesai">Selesai</option>
-          </select>
-
-          <select
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
-            className="text-xs bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 font-medium text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          >
-            <option value="all">Semua Tipe Lisensi</option>
-            <option value="Tahunan">Tahunan</option>
-            <option value="Bulanan">Bulanan</option>
-            <option value="Perpetual">Perpetual</option>
-          </select>
-
-          {/* TOMBOL EXPORT DIUBAH KE EXCEL */}
+        {/* BARIS 2: Tombol Aksi */}
+        <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
           <button
             type="button"
             onClick={handleExportExcel}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
           >
             <Download className="w-3.5 h-3.5" />
-            <span>Export Excel</span>
+            <span>Export Data (Excel)</span>
           </button>
 
           <button
             type="button"
             onClick={onOpenNewBast}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>Buat BAST</span>
+            <span>Buat BAST Baru</span>
           </button>
         </div>
       </div>
@@ -238,7 +325,7 @@ export const PicDashboard: React.FC<PicDashboardProps> = ({
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
-                <th className="p-3.5">Nomor BAST</th>
+                <th className="p-3.5">Nomor Dokumen</th>
                 <th className="p-3.5">Penerima & Info</th>
                 <th className="p-3.5">Daftar Software (Multi-Item)</th>
                 <th className="p-3.5">Tanggal</th>
@@ -247,17 +334,19 @@ export const PicDashboard: React.FC<PicDashboardProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredRecords.length === 0 ? (
+              {filteredAndSortedRecords.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="text-center py-10 text-slate-400">
                     Tidak ada data BAST yang sesuai pencarian.
                   </td>
                 </tr>
               ) : (
-                filteredRecords.map((rec) => (
+                filteredAndSortedRecords.map((rec) => (
                   <tr key={rec.id} className="hover:bg-slate-50/70 transition-colors">
                     <td className="p-3.5 align-top">
                       <div className="font-mono font-bold text-slate-900">{rec.bastNumber}</div>
+                      <div className="text-[10px] text-slate-500 mt-1">PO: <span className="font-mono">{rec.poNumber || (rec.isPoPending ? 'Menyusul' : 'No PO Belum Ada')}</span></div>
+                      {rec.notaNumber && <div className="text-[10px] text-slate-500">Nota: <span className="font-mono">{rec.notaNumber}</span></div>}
                       <div className="text-[10px] text-slate-400 mt-1">Oleh: {rec.picName}</div>
                     </td>
 

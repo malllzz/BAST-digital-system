@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Upload, Plus, Trash2, Edit, Search, Shield, User, Briefcase, X } from 'lucide-react';
+import { Upload, Plus, Trash2, Edit, Search, Shield, User, Briefcase, X, Eye, EyeOff } from 'lucide-react';
 import { SimulatedUser, UserRole } from '../types';
 
 interface EmployeeManagementTabProps {
@@ -29,8 +29,11 @@ export const EmployeeManagementTab: React.FC<EmployeeManagementTabProps> = ({
     email: '', 
     department: '', 
     role: 'user', 
-    password: 'Corp2026!'
+    password: 'User*Tije26'
   });
+
+  // State untuk toggle visibilitas password
+  const [showPassword, setShowPassword] = useState(false);
 
   // Filter pencarian
   const filteredUsers = users.filter(
@@ -61,7 +64,7 @@ export const EmployeeManagementTab: React.FC<EmployeeManagementTabProps> = ({
             nik: columns[1] || '00000',
             email: columns[2] || `user${i}@corp.id`,
             department: columns[3] || 'General',
-            password: 'Corp2026!',
+            password: 'User*Tije26',
             role: (columns[4]?.toLowerCase() === 'admin' || columns[4]?.toLowerCase() === 'pic') 
                   ? columns[4].toLowerCase() as UserRole 
                   : 'user',
@@ -85,8 +88,9 @@ export const EmployeeManagementTab: React.FC<EmployeeManagementTabProps> = ({
   const openAddModal = () => {
     setEditingUser(null);
     setFormData({ 
-      name: '', nik: '', email: '', department: '', role: 'user', password: 'Corp2026!' 
+      name: '', nik: '', email: '', department: '', role: 'user', password: 'User*Tije26' 
     });
+    setShowPassword(false);
     setIsModalOpen(true);
   };
 
@@ -94,8 +98,9 @@ export const EmployeeManagementTab: React.FC<EmployeeManagementTabProps> = ({
     setEditingUser(user);
     setFormData({ 
       ...user, 
-      password: user.password || 'Corp2026!' 
+      password: user.password || 'User*Tije26' 
     });
+    setShowPassword(false);
     setIsModalOpen(true);
   };
 
@@ -103,6 +108,7 @@ export const EmployeeManagementTab: React.FC<EmployeeManagementTabProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (editingUser) {
+      // Jika email diubah, kita kirimkan email lamanya agar parent tau user mana yang diupdate
       onUpdateUser(editingUser.email, formData);
     } else {
       onAddUser(formData);
@@ -129,7 +135,7 @@ export const EmployeeManagementTab: React.FC<EmployeeManagementTabProps> = ({
           />
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 px-4 py-2 rounded-xl text-sm font-medium transition-colors"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 px-4 py-2 rounded-xl text-sm font-medium transition-colors cursor-pointer"
           >
             <Upload className="w-4 h-4" />
             <span>Import CSV</span>
@@ -185,7 +191,7 @@ export const EmployeeManagementTab: React.FC<EmployeeManagementTabProps> = ({
                   <tr key={user.email} className="hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm">
+                        <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm shrink-0">
                           {user.name.charAt(0)}
                         </div>
                         <div>
@@ -298,8 +304,7 @@ export const EmployeeManagementTab: React.FC<EmployeeManagementTabProps> = ({
                   type="email" 
                   value={formData.email} 
                   onChange={e => setFormData({...formData, email: e.target.value})} 
-                  disabled={!!editingUser} 
-                  className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 disabled:text-slate-400" 
+                  className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500" 
                 />
               </div>
 
@@ -330,13 +335,22 @@ export const EmployeeManagementTab: React.FC<EmployeeManagementTabProps> = ({
 
               <div>
                 <label className="block text-xs font-semibold mb-1 text-slate-700">Password Sistem</label>
-                <input 
-                  required 
-                  type="text" 
-                  value={formData.password} 
-                  onChange={e => setFormData({...formData, password: e.target.value})} 
-                  className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500" 
-                />
+                <div className="relative">
+                  <input 
+                    required 
+                    type={showPassword ? "text" : "password"}
+                    value={formData.password} 
+                    onChange={e => setFormData({...formData, password: e.target.value})} 
+                    className="w-full text-sm border border-slate-200 rounded-lg pl-3 pr-10 py-2 outline-none focus:ring-2 focus:ring-blue-500" 
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 cursor-pointer"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
 
               <div className="pt-4 flex gap-2 justify-end border-t border-slate-100">

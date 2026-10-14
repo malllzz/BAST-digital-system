@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash2, ShieldAlert, Sparkles, Send, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { X, Plus, Trash2, ShieldAlert, Sparkles, Send, CheckCircle2, CreditCard } from 'lucide-react';
 import { BastRecord, LicenseItem, LicenseType, SimulatedUser } from '../types';
 
 interface BastFormModalProps {
@@ -39,13 +39,43 @@ export const BastFormModal: React.FC<BastFormModalProps> = ({
   const [recipientName, setRecipientName] = useState('');
   const [recipientEmail, setRecipientEmail] = useState('');
   const [department, setDepartment] = useState('');
+  
+  // Data Dokumen PO / Nota
+  const [poNumber, setPoNumber] = useState('');
+  const [notaNumber, setNotaNumber] = useState('');
+  const [isPoPending, setIsPoPending] = useState(false);
+
+  // PIC & Notes
   const [picName, setPicName] = useState('Dimas Pratama');
-  const [picEmail, setPicEmail] = useState('dimas.pratama@corp.id');
+  const [picEmail, setPicEmail] = useState('dimas.pratama@transjakarta.co.id');
   const [notes, setNotes] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
   // Multi-item license table
   const [items, setItems] = useState<LicenseItem[]>([]);
+
+  // Autocomplete Suggestions State
+  const [showNikSuggestions, setShowNikSuggestions] = useState(false);
+  const [showNameSuggestions, setShowNameSuggestions] = useState(false);
+
+  const nikWrapperRef = useRef<HTMLDivElement>(null);
+  const nameWrapperRef = useRef<HTMLDivElement>(null);
+
+  // Close suggestions if clicked outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (nikWrapperRef.current && !nikWrapperRef.current.contains(event.target as Node)) {
+        setShowNikSuggestions(false);
+      }
+      if (nameWrapperRef.current && !nameWrapperRef.current.contains(event.target as Node)) {
+        setShowNameSuggestions(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   // Effect untuk mereset/mengisi data saat modal dibuka
   useEffect(() => {
@@ -54,6 +84,9 @@ export const BastFormModal: React.FC<BastFormModalProps> = ({
       setRecipientName(initialData.recipientName);
       setRecipientEmail(initialData.recipientEmail);
       setDepartment(initialData.department);
+      setPoNumber(initialData.poNumber || '');
+      setNotaNumber(initialData.notaNumber || '');
+      setIsPoPending(initialData.isPoPending || false);
       setPicName(initialData.picName);
       setPicEmail(initialData.picEmail);
       setNotes(initialData.notes || '');
@@ -63,6 +96,11 @@ export const BastFormModal: React.FC<BastFormModalProps> = ({
       setRecipientName(''); 
       setRecipientEmail(''); 
       setDepartment(''); 
+      setPoNumber('');
+      setNotaNumber('');
+      setIsPoPending(false);
+      setPicName('Dimas Pratama');
+      setPicEmail('dimas.pratama@transjakarta.co.id');
       setNotes('');
       setItems([{
         id: `item-${Date.now()}-1`, 
@@ -76,15 +114,31 @@ export const BastFormModal: React.FC<BastFormModalProps> = ({
     }
   }, [isOpen, initialData]);
 
-  // Handle user preset auto-fill
-  const handleSelectPresetUser = (email: string) => {
-    const user = simulatedUsers.find((u) => u.email === email);
-    if (user) {
-      setRecipientName(user.name);
-      setRecipientNIK(user.nik);
-      setRecipientEmail(user.email);
-      setDepartment(user.department);
-    }
+  // Membatasi opsi cepat hanya 5 user
+  const quickUsers = useMemo(() => {
+    return simulatedUsers.filter((u) => u.role === 'user').slice(0, 5);
+  }, [simulatedUsers]);
+
+  // Filter Data untuk Suggestion NIK
+  const nikSuggestions = useMemo(() => {
+    if (!recipientNIK) return [];
+    return simulatedUsers.filter(u => u.nik.toLowerCase().includes(recipientNIK.toLowerCase()) && u.role === 'user');
+  }, [recipientNIK, simulatedUsers]);
+
+  // Filter Data untuk Suggestion Nama
+  const nameSuggestions = useMemo(() => {
+    if (!recipientName) return [];
+    return simulatedUsers.filter(u => u.name.toLowerCase().includes(recipientName.toLowerCase()) && u.role === 'user');
+  }, [recipientName, simulatedUsers]);
+
+  // Handle Select User (dari Preset atau Suggestion)
+  const handleSelectUser = (user: SimulatedUser) => {
+    setRecipientName(user.name);
+    setRecipientNIK(user.nik);
+    setRecipientEmail(user.email);
+    setDepartment(user.department);
+    setShowNikSuggestions(false);
+    setShowNameSuggestions(false);
   };
 
   const handleAddItem = () => {
@@ -157,6 +211,17 @@ export const BastFormModal: React.FC<BastFormModalProps> = ({
       setErrorMessage('Departemen wajib diisi.');
       return;
     }
+    
+    // Validasi PO
+    if (!isPoPending && !poNumber.trim()) {
+      setErrorMessage('Nomor PO wajib diisi jika bukan transaksi Kartu Kredit Korporat.');
+      return;
+    }
+
+    if (!picName.trim() || !picEmail.trim()) {
+      setErrorMessage('Nama dan Email PIC Penyerah tidak boleh kosong.');
+      return;
+    }
 
     // Validate license items
     for (let i = 0; i < items.length; i++) {
@@ -182,6 +247,9 @@ export const BastFormModal: React.FC<BastFormModalProps> = ({
     const newBast: BastRecord = {
       id: initialData ? initialData.id : `bast-${Date.now()}`,
       bastNumber: initialData ? initialData.bastNumber : nextBastNumber,
+      poNumber: isPoPending ? undefined : poNumber.trim(),
+      notaNumber: notaNumber.trim() || undefined,
+      isPoPending,
       recipientName: recipientName.trim(),
       recipientNIK: recipientNIK.trim(),
       recipientEmail: recipientEmail.trim(),
@@ -231,7 +299,7 @@ export const BastFormModal: React.FC<BastFormModalProps> = ({
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-8">
           {errorMessage && (
             <div className="bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-xl text-xs flex items-center gap-2">
               <ShieldAlert className="w-4 h-4 shrink-0 text-rose-600" />
@@ -239,26 +307,24 @@ export const BastFormModal: React.FC<BastFormModalProps> = ({
             </div>
           )}
 
-          {/* Quick Select Preset Karyawan (Hanya tampil jika mode Buat Baru) */}
+          {/* Quick Select Preset Karyawan (Dibatasi 5 User) */}
           {!initialData && (
             <div className="bg-blue-50/60 border border-blue-100 rounded-xl p-3 flex flex-wrap items-center justify-between gap-2">
               <div className="text-xs text-blue-900 flex items-center gap-1.5">
                 <Sparkles className="w-4 h-4 text-blue-600" />
-                <span className="font-medium">Opsi Cepat: Isi dari Data Karyawan M365</span>
+                <span className="font-medium">Opsi Cepat: Isi dari Data Karyawan (Top 5)</span>
               </div>
-              <div className="flex items-center gap-1.5">
-                {simulatedUsers
-                  .filter((u) => u.role === 'user')
-                  .map((u) => (
-                    <button
-                      key={u.email}
-                      type="button"
-                      onClick={() => handleSelectPresetUser(u.email)}
-                      className="text-[11px] px-2.5 py-1 bg-white hover:bg-blue-100 text-blue-700 font-medium rounded-lg border border-blue-200 transition-colors cursor-pointer"
-                    >
-                      {u.name} ({u.nik})
-                    </button>
-                  ))}
+              <div className="flex flex-wrap items-center gap-1.5">
+                {quickUsers.map((u) => (
+                  <button
+                    key={u.email}
+                    type="button"
+                    onClick={() => handleSelectUser(u)}
+                    className="text-[11px] px-2.5 py-1 bg-white hover:bg-blue-100 text-blue-700 font-medium rounded-lg border border-blue-200 transition-colors cursor-pointer"
+                  >
+                    {u.name} ({u.nik})
+                  </button>
+                ))}
               </div>
             </div>
           )}
@@ -269,34 +335,70 @@ export const BastFormModal: React.FC<BastFormModalProps> = ({
               1. Data Karyawan Penerima Lisensi (Pihak Kedua)
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div>
+              <div className="relative" ref={nikWrapperRef}>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  NIK (Nomor Induk Karyawan) <span className="text-rose-500">*</span>
+                  NIK <span className="text-rose-500">*</span>
                 </label>
                 <input
-                  id="input-recipient-nik"
                   type="text"
                   value={recipientNIK}
-                  onChange={(e) => setRecipientNIK(e.target.value)}
+                  onChange={(e) => {
+                    setRecipientNIK(e.target.value);
+                    setShowNikSuggestions(true);
+                  }}
+                  onFocus={() => setShowNikSuggestions(true)}
                   placeholder="Contoh: 10928374"
                   className="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg focus:ring-1 focus:ring-blue-500 focus:outline-none"
                   required
                 />
+                {/* Autocomplete Dropdown NIK */}
+                {showNikSuggestions && recipientNIK.length > 0 && nikSuggestions.length > 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+                    {nikSuggestions.map((u) => (
+                      <div
+                        key={u.nik}
+                        onClick={() => handleSelectUser(u)}
+                        className="px-3 py-2 text-xs hover:bg-blue-50 cursor-pointer border-b border-slate-100 last:border-0"
+                      >
+                        <div className="font-semibold text-slate-800">{u.nik}</div>
+                        <div className="text-[10px] text-slate-500">{u.name}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
-              <div>
+              <div className="relative" ref={nameWrapperRef}>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
                   Nama Lengkap <span className="text-rose-500">*</span>
                 </label>
                 <input
-                  id="input-recipient-name"
                   type="text"
                   value={recipientName}
-                  onChange={(e) => setRecipientName(e.target.value)}
+                  onChange={(e) => {
+                    setRecipientName(e.target.value);
+                    setShowNameSuggestions(true);
+                  }}
+                  onFocus={() => setShowNameSuggestions(true)}
                   placeholder="Contoh: Fauzan Miftahurochman"
                   className="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg focus:ring-1 focus:ring-blue-500 focus:outline-none"
                   required
                 />
+                {/* Autocomplete Dropdown NAMA */}
+                {showNameSuggestions && recipientName.length > 0 && nameSuggestions.length > 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+                    {nameSuggestions.map((u) => (
+                      <div
+                        key={u.nik}
+                        onClick={() => handleSelectUser(u)}
+                        className="px-3 py-2 text-xs hover:bg-blue-50 cursor-pointer border-b border-slate-100 last:border-0"
+                      >
+                        <div className="font-semibold text-slate-800">{u.name}</div>
+                        <div className="text-[10px] text-slate-500">NIK: {u.nik}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div>
@@ -304,7 +406,6 @@ export const BastFormModal: React.FC<BastFormModalProps> = ({
                   Email Microsoft 365 <span className="text-rose-500">*</span>
                 </label>
                 <input
-                  id="input-recipient-email"
                   type="email"
                   value={recipientEmail}
                   onChange={(e) => setRecipientEmail(e.target.value)}
@@ -319,7 +420,6 @@ export const BastFormModal: React.FC<BastFormModalProps> = ({
                   Departemen <span className="text-rose-500">*</span>
                 </label>
                 <input
-                  id="input-recipient-dept"
                   type="text"
                   value={department}
                   onChange={(e) => setDepartment(e.target.value)}
@@ -331,14 +431,84 @@ export const BastFormModal: React.FC<BastFormModalProps> = ({
             </div>
           </div>
 
-          {/* Bagian 2: Multi-Item Lisensi */}
+          {/* Bagian 2: Dokumen Dasar Pengadaan */}
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                2. Dokumen Dasar & Referensi Pengadaan
+              </h2>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                Nomor Purchase Order (PO) dan Nota Permohonan / Tiket Pengadaan sebagai dasar audit aset IT
+              </p>
+            </div>
+            
+            <div className="bg-[#FFF8E7] border border-[#FDE7A9] rounded-xl p-4">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input 
+                  type="checkbox"
+                  checked={isPoPending}
+                  onChange={(e) => {
+                    setIsPoPending(e.target.checked);
+                    if(e.target.checked) setPoNumber(''); // Reset isi PO jika dicentang
+                  }}
+                  className="mt-1 w-4 h-4 text-amber-600 rounded border-slate-300 focus:ring-amber-500"
+                />
+                <div>
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-amber-900">
+                    <CreditCard className="w-4 h-4" />
+                    <span>Transaksi Kartu Kredit Korporat (Nomor PO Belum Terbit / Disusulkan Belakangan)</span>
+                  </div>
+                  <p className="text-[11px] text-amber-800 mt-1">
+                    Centang jika lisensi dibeli instan & diserahkan sekarang; nomor PO resmi akan diinput belakangan via dashboard PIC setelah terbit dari Finance.
+                  </p>
+                </div>
+              </label>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Nomor Purchase Order (PO) {!isPoPending && <span className="text-rose-500">*</span>}
+                </label>
+                <input
+                  type="text"
+                  value={poNumber}
+                  disabled={isPoPending}
+                  onChange={(e) => setPoNumber(e.target.value)}
+                  placeholder={isPoPending ? "Nomor PO menyusul (Dicentang)" : "Contoh: PO-2026/IT-DEV/0412"}
+                  className={`w-full text-xs px-3 py-2 border rounded-lg focus:outline-none ${
+                    isPoPending 
+                    ? "bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed" 
+                    : "border-slate-200 focus:ring-1 focus:ring-blue-500"
+                  }`}
+                />
+                <p className="text-[10px] text-slate-400 mt-1">Nomor PO pengadaan lisensi dari vendor / tim procurement</p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Nomor Nota Permohonan / Memo Dinas <span className="font-normal text-slate-400">(Opsional)</span>
+                </label>
+                <input
+                  type="text"
+                  value={notaNumber}
+                  onChange={(e) => setNotaNumber(e.target.value)}
+                  placeholder="Contoh: ND-ENG/VIII/2026/089 atau No. Tiket"
+                  className="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                />
+                <p className="text-[10px] text-slate-400 mt-1">Nomor surat / nota dinas permohonan dari departemen pemohon</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Bagian 3: Multi-Item Lisensi */}
           <div className="space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-2">
               <div>
                 <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                  2. Rincian Lisensi Software (Multi-Item)
+                  3. Rincian Lisensi Software (Multi-Item)
                 </h2>
-                <p className="text-[11px] text-slate-400">
+                <p className="text-[11px] text-slate-400 mt-0.5">
                   Tambahkan satu atau lebih lisensi software yang diserahkan dalam BAST ini
                 </p>
               </div>
@@ -348,7 +518,7 @@ export const BastFormModal: React.FC<BastFormModalProps> = ({
                 className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>+ Tambah Lisensi Lain</span>
+                <span>Tambah Lisensi Lain</span>
               </button>
             </div>
 
@@ -467,22 +637,35 @@ export const BastFormModal: React.FC<BastFormModalProps> = ({
             </div>
           </div>
 
-          {/* Bagian 3: PIC & Catatan */}
+          {/* Bagian 4: PIC & Catatan */}
           <div className="space-y-4">
             <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 border-b border-slate-100 pb-2">
-              3. PIC Penyerah (Pihak Pertama) & Catatan Tambahan
+              4. PIC Penyerah (Pihak Pertama) & Catatan Tambahan
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  PIC IT Asset Management
+                  Nama PIC IT Asset Management <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
                   value={picName}
                   onChange={(e) => setPicName(e.target.value)}
-                  className="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg bg-slate-50"
-                  readOnly
+                  placeholder="Ketik Nama Anda"
+                  className="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Email PIC <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="email"
+                  value={picEmail}
+                  onChange={(e) => setPicEmail(e.target.value)}
+                  placeholder="Ketik Email Anda"
+                  className="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg focus:ring-1 focus:ring-blue-500 focus:outline-none"
                 />
               </div>
 

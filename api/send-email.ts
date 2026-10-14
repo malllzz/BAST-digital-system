@@ -19,10 +19,19 @@ export default async function handler(req: any, res: any) {
     expiryDate,
     type,
     html,
-    items // <-- PENAMBAHAN: Menangkap array lisensi
+    items, 
+    notaNumber,
+    poNumber,
+    department,
+    picName,
+    picEmail
   } = req.body;
 
   const confirmationLink = `https://bast-digital-system.vercel.app/konfirmasi?id=${bastId}`;
+  
+  // URL Gambar Logo Resmi yang sudah dihosting
+  const watermarkSvg = 'https://bast-digital-system.vercel.app/transjakarta-logo.svg';
+  const logoPng = 'https://bast-digital-system.vercel.app/transjakarta-logo.png';
 
   // ==========================================
   // LOGIKA PEMBUATAN BARIS TABEL DINAMIS
@@ -30,21 +39,24 @@ export default async function handler(req: any, res: any) {
   let itemsHtml = '';
   
   if (items && Array.isArray(items) && items.length > 0) {
-    // Jika ada lebih dari 1 lisensi, buat baris tabel secara dinamis
     itemsHtml = items.map((it: any) => `
       <tr>
-        <td style="padding-top: 12px; font-weight: bold;">${it.softwareName}</td>
-        <td style="padding-top: 12px; color: #666;">${it.licenseType}</td>
-        <td style="padding-top: 12px; color: #666;">${it.licenseType === 'Perpetual' ? 'Seumur Hidup' : (it.expiryDate || '-')}</td>
+        <td style="padding: 12px 8px 12px 0; border-bottom: 1px solid #f1f5f9; font-weight: bold; color: #1e293b;">
+          ${it.softwareName}
+          ${it.itemNotes ? `<div style="font-size: 11px; color: #0369a1; font-family: monospace; margin-top: 4px; font-weight: normal;">↳ ${it.itemNotes}</div>` : ''}
+        </td>
+        <td style="padding: 12px 8px; border-bottom: 1px solid #f1f5f9; color: #475569;">${it.licenseType}</td>
+        <td style="padding: 12px 8px; border-bottom: 1px solid #f1f5f9; color: #475569; font-family: monospace; font-size: 12px;">${it.licenseKeyAccount || '-'}</td>
+        <td style="padding: 12px 0 12px 8px; border-bottom: 1px solid #f1f5f9; color: #475569;">${it.licenseType === 'Perpetual' ? 'Seumur Hidup' : (it.expiryDate || '-')}</td>
       </tr>
     `).join('');
   } else {
-    // Fallback jika data items kosong
     itemsHtml = `
       <tr>
-        <td style="padding-top: 12px; font-weight: bold;">${softwareName}</td>
-        <td style="padding-top: 12px; color: #666;">${licenseType}</td>
-        <td style="padding-top: 12px; color: #666;">${expiryDate}</td>
+        <td style="padding: 12px 8px 12px 0; border-bottom: 1px solid #f1f5f9; font-weight: bold; color: #1e293b;">${softwareName}</td>
+        <td style="padding: 12px 8px; border-bottom: 1px solid #f1f5f9; color: #475569;">${licenseType}</td>
+        <td style="padding: 12px 8px; border-bottom: 1px solid #f1f5f9; color: #475569; font-family: monospace;">-</td>
+        <td style="padding: 12px 0 12px 8px; border-bottom: 1px solid #f1f5f9; color: #475569;">${expiryDate}</td>
       </tr>
     `;
   }
@@ -56,70 +68,118 @@ export default async function handler(req: any, res: any) {
 
   if (type === 'expiry_reminder') {
     emailHtml = html || `
-      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
-        <div style="padding: 20px; background-color: #ffffff;">
-           <div style="background-color: #FFF4CE; border: 1px solid #FDE7A9; padding: 12px; border-radius: 6px; margin-bottom: 20px;">
-              <div style="color: #D83B01; font-weight: bold; font-size: 14px;">⚠ Pengingat Otomatis Sistem (H-30 Hari)</div>
-              <div style="color: #D83B01; font-size: 12px; margin-top: 4px;">Lisensi software Anda akan kedaluwarsa dalam 30 hari ke depan.</div>
-           </div>
-           
-           <p style="font-size: 14px; margin-bottom: 16px;">Halo <strong>${employeeName}</strong> (NIK: ${employeeNik}),</p>
-           <p style="font-size: 14px; margin-bottom: 16px;">Sistem mendeteksi bahwa lisensi software berikut yang terdaftar atas nama Anda akan segera berakhir:</p>
-           
-           <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 16px; margin-bottom: 20px;">
-             <table style="width: 100%; font-size: 14px; text-align: left; border-collapse: collapse;">
-               <tr><td style="color: #64748b; padding-bottom: 8px; width: 140px;">Nama Software:</td><td style="font-weight: bold; padding-bottom: 8px;">${softwareName}</td></tr>
-               <tr><td style="color: #64748b; padding-bottom: 8px;">Tipe Lisensi:</td><td style="font-weight: bold; padding-bottom: 8px;">${licenseType}</td></tr>
-               <tr><td style="color: #64748b; padding-bottom: 8px;">Tanggal Berakhir:</td><td style="font-weight: bold; color: #e11d48; padding-bottom: 8px;">${expiryDate}</td></tr>
-             </table>
-           </div>
+      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #334155; max-width: 650px; margin: 0 auto; background-color: #ffffff; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background-image: url('${watermarkSvg}'); background-repeat: no-repeat; background-position: center; background-size: 80%; background-blend-mode: lighten; box-shadow: inset 0 0 0 1000px rgba(255,255,255,0.96);">
+         
+         <div style="background-color: #fef3c7; border: 1px solid #fde68a; padding: 16px; border-radius: 8px; margin-bottom: 24px;">
+            <div style="color: #b45309; font-weight: bold; font-size: 14px;">⚠ Pengingat Otomatis Sistem (H-30 Hari)</div>
+            <div style="color: #b45309; font-size: 13px; margin-top: 4px;">Lisensi software Anda akan kedaluwarsa dalam 30 hari ke depan.</div>
+         </div>
+         
+         <p style="font-size: 14px; margin-bottom: 16px;">Halo <strong>${employeeName}</strong> (NIK: ${employeeNik}),</p>
+         <p style="font-size: 14px; margin-bottom: 20px; line-height: 1.6;">Sistem mendeteksi bahwa lisensi software berikut yang terdaftar atas nama Anda akan segera berakhir:</p>
+         
+         <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
+           <table style="width: 100%; font-size: 14px; text-align: left; border-collapse: collapse;">
+             <tr><td style="color: #64748b; padding-bottom: 10px; width: 140px;">Nama Software:</td><td style="font-weight: bold; color: #0f172a; padding-bottom: 10px;">${softwareName}</td></tr>
+             <tr><td style="color: #64748b; padding-bottom: 10px;">Tipe Lisensi:</td><td style="font-weight: bold; color: #1e293b; padding-bottom: 10px;">${licenseType}</td></tr>
+             <tr><td style="color: #64748b; padding-bottom: 10px;">Tanggal Berakhir:</td><td style="font-weight: bold; color: #e11d48; padding-bottom: 10px; font-family: monospace;">${expiryDate}</td></tr>
+           </table>
+         </div>
 
-           <div style="font-weight: bold; font-size: 14px; margin-bottom: 8px;">Tindakan yang Disarankan:</div>
-           <ul style="font-size: 14px; color: #475569; margin-top: 0; padding-left: 20px;">
-             <li style="margin-bottom: 4px;">Jika lisensi ini masih aktif digunakan untuk pekerjaan Anda, mohon ajukan permohonan perpanjangan (*renewal*) ke atasan atau tim IT.</li>
-             <li>Jika lisensi sudah tidak digunakan, mohon informasikan tim IT agar kuota lisensi dapat dialihkan ke user lain.</li>
-           </ul>
+         <div style="font-weight: bold; font-size: 14px; margin-bottom: 10px; color: #0f172a;">Tindakan yang Disarankan:</div>
+         <ul style="font-size: 14px; color: #475569; margin-top: 0; padding-left: 20px; line-height: 1.6; border-bottom: 1px solid #e2e8f0; padding-bottom: 24px;">
+           <li style="margin-bottom: 6px;">Jika lisensi ini masih aktif digunakan untuk pekerjaan Anda, mohon ajukan permohonan perpanjangan (*renewal*) ke atasan atau tim IT.</li>
+           <li>Jika lisensi sudah tidak digunakan, mohon informasikan tim IT agar kuota lisensi dapat dialihkan ke user lain.</li>
+         </ul>
 
-           <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #64748b;">
-             <p style="margin: 0;">Salam,</p>
-             <p style="margin: 4px 0 0 0; font-weight: bold; color: #475569;">IT Asset & License Management Team</p>
-             <p style="margin: 2px 0 0 0;">PT Korporat Teknologi Mandiri</p>
-           </div>
-        </div>
+         <table style="width: 100%; margin-top: 24px; font-size: 13px; color: #64748b; border-collapse: collapse;">
+           <tr>
+             <td style="vertical-align: bottom;">
+               <p style="margin: 0;">Salam hangat,</p>
+               <p style="margin: 4px 0 0 0; font-weight: bold; color: #334155;">Divisi Teknologi Informasi & Komunikasi</p>
+               <p style="margin: 2px 0 0 0;">PT Transportasi Jakarta (Transjakarta)</p>
+             </td>
+             <td style="text-align: right; vertical-align: bottom;">
+               <img src="${logoPng}" alt="Transjakarta" style="height: 32px; display: block; margin-left: auto;" />
+             </td>
+           </tr>
+         </table>
       </div>
     `;
   } else {
-    // TEMPLATE HANDOVER (Menerapkan itemsHtml dinamis di sini)
+    // TEMPLATE HANDOVER
+    let additionalInfo = '';
+    if (notaNumber) additionalInfo += ` (Berdasarkan Nota Dinas: ${notaNumber})`;
+    if (poNumber) {
+        additionalInfo += ` (Purchase Order: <strong style="font-family: monospace; color: #4338ca;">${poNumber}</strong>)`;
+    } else {
+        additionalInfo += ` (Status Pengadaan: <span style="background-color: #fef3c7; border: 1px solid #fde68a; color: #b45309; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 12px;">Kartu Kredit - PO Menyusul</span>)`;
+    }
+
     emailHtml = `
-      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; max-width: 600px; margin: 0 auto;">
-        <p>Halo <strong>${employeeName}</strong> (NIK: ${employeeNik}),</p>
+      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #334155; max-width: 700px; margin: 0 auto; background-color: #ffffff; padding: 32px; border: 1px solid #e2e8f0; border-radius: 12px; background-image: url('${watermarkSvg}'); background-repeat: no-repeat; background-position: center; background-size: 70%; background-blend-mode: lighten; box-shadow: inset 0 0 0 1000px rgba(255,255,255,0.97);">
         
-        <p>Tim IT Asset Management telah menyelesaikan pemenuhan lisensi software yang Anda butuhkan dengan nomor dokumen <strong>${bastNumber}</strong>.</p>
+        <p style="font-size: 15px; margin-top: 0;">Halo <strong>${employeeName}</strong> (NIK: ${employeeNik}),</p>
         
-        <div style="border: 1px solid #e1e4e8; border-radius: 8px; padding: 20px; margin: 20px 0; background-color: #f9fbfd;">
-          <p style="margin-top: 0; font-weight: bold;">Daftar Lisensi Software:</p>
-          <table style="width: 100%; border-collapse: collapse; text-align: left;">
-            <tr style="border-bottom: 1px solid #e1e4e8; color: #666; font-size: 14px;">
-              <th style="padding-bottom: 8px;">Nama Software</th>
-              <th style="padding-bottom: 8px;">Tipe</th>
-              <th style="padding-bottom: 8px;">Masa Berlaku</th>
-            </tr>
-            ${itemsHtml} 
+        <p style="font-size: 14px; line-height: 1.6; margin-bottom: 24px;">
+          Tim IT Asset Management telah menyelesaikan pemenuhan lisensi software yang Anda butuhkan dengan nomor dokumen <strong>${bastNumber}</strong>${additionalInfo}.
+        </p>
+        
+        <table style="width: 100%; border: 1px solid #e2e8f0; border-radius: 10px; background-color: #f8fafc; margin-bottom: 24px; font-size: 13px; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 16px; width: 50%; vertical-align: top;">
+              <div style="color: #64748b; margin-bottom: 4px; font-size: 12px;">Penerima Lisensi:</div>
+              <div style="font-weight: bold; color: #0f172a; font-size: 15px; margin-bottom: 4px;">${employeeName}</div>
+              <div style="color: #64748b; font-family: monospace; font-size: 12px;">NIK: ${employeeNik} &bull; ${department || 'Departemen User'}</div>
+            </td>
+            <td style="padding: 16px; width: 50%; vertical-align: top; border-left: 1px solid #e2e8f0;">
+              <div style="color: #64748b; margin-bottom: 4px; font-size: 12px;">PIC IT Penyerah Lisensi:</div>
+              <div style="font-weight: bold; color: #0f172a; font-size: 15px; margin-bottom: 4px;">${picName || 'Dimas Pratama'}</div>
+              <div style="color: #64748b; font-family: monospace; font-size: 12px;">${picEmail || 'dimas.pratama@corp.id'}</div>
+            </td>
+          </tr>
+        </table>
+
+        <div style="border: 1px solid #e2e8f0; border-radius: 10px; padding: 20px; margin-bottom: 24px; background-color: rgba(248, 250, 252, 0.6);">
+          <div style="margin-top: 0; font-weight: bold; font-size: 14px; margin-bottom: 12px; color: #0f172a;">Daftar Lisensi Software yang Diserahkan:</div>
+          <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
+            <thead>
+              <tr>
+                <th style="padding-bottom: 12px; border-bottom: 2px solid #e2e8f0; color: #475569; font-weight: 600;">Nama Software</th>
+                <th style="padding-bottom: 12px; border-bottom: 2px solid #e2e8f0; color: #475569; font-weight: 600;">Tipe Lisensi</th>
+                <th style="padding-bottom: 12px; border-bottom: 2px solid #e2e8f0; color: #475569; font-weight: 600;">Akun / Seat</th>
+                <th style="padding-bottom: 12px; border-bottom: 2px solid #e2e8f0; color: #475569; font-weight: 600;">Masa Berlaku</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsHtml}
+            </tbody>
           </table>
         </div>
 
-        <p style="color: #555; font-size: 14px; line-height: 1.5;">Sesuai kebijakan tata kelola IT korporat, mohon luangkan waktu 1 menit untuk memeriksa aktivasi software dan melakukan konfirmasi serah terima secara digital.</p>
+        <p style="color: #475569; font-size: 14px; line-height: 1.6; margin-bottom: 24px;">
+          Sesuai kebijakan tata kelola IT korporat, mohon luangkan waktu 1 menit untuk memeriksa aktivasi software dan melakukan konfirmasi serah terima secara digital.
+        </p>
         
-        <div style="text-align: center; margin: 30px 0;">
-          <a href="${confirmationLink}" style="background-color: #0078d4; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold; display: inline-block;">Konfirmasi Penerimaan Lisensi (Login M365)</a>
-          <p style="font-size: 11px; color: #888; margin-top: 10px;">*Tautan ini mengarah langsung ke portal BAST Digital dengan verifikasi Azure AD SSO.</p>
+        <div style="text-align: center; margin: 32px 0; border-bottom: 1px solid #e2e8f0; padding-bottom: 32px;">
+          <a href="${confirmationLink}" style="background-color: #0078d4; color: white; padding: 12px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block; font-size: 14px; box-shadow: 0 2px 4px rgba(0,120,212,0.2);">Konfirmasi Penerimaan Lisensi</a>
+          <p style="font-size: 11px; color: #94a3b8; margin-top: 12px; margin-bottom: 0;">
+            *Tautan ini mengarah langsung ke portal BAST Digital dengan verifikasi Azure AD SSO.
+          </p>
         </div>
 
-        <p style="font-size: 13px; color: #666; margin-top: 40px; border-top: 1px solid #eee; padding-top: 15px;">
-          Salam,<br>
-          <strong>IT Asset & License Management Team</strong><br>
-          PT Korporat Teknologi Mandiri
-        </p>
+        <table style="width: 100%; margin-top: 24px; font-size: 13px; color: #64748b; border-collapse: collapse;">
+           <tr>
+             <td style="vertical-align: bottom;">
+               <p style="margin: 0;">Salam hangat,</p>
+               <p style="margin: 4px 0 0 0; font-weight: bold; color: #334155;">Divisi Teknologi Informasi & Komunikasi</p>
+               <p style="margin: 2px 0 0 0;">PT Transportasi Jakarta (Transjakarta)</p>
+             </td>
+             <td style="text-align: right; vertical-align: bottom;">
+               <img src="${logoPng}" alt="Transjakarta" style="height: 32px; display: block; margin-left: auto;" />
+             </td>
+           </tr>
+        </table>
       </div>
     `;
   }

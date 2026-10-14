@@ -1,5 +1,5 @@
 import React from 'react';
-import { Laptop, FileText, LogOut, Users, FileBarChart2, Clock, ShieldCheck } from 'lucide-react';
+import { FileText, LogOut, Users, FileBarChart2, Clock, ShieldCheck } from 'lucide-react';
 import { UserRole, SimulatedUser } from '../types';
 
 interface NavbarProps {
@@ -9,7 +9,7 @@ interface NavbarProps {
   setActiveTab: (tab: string) => void;
   onOpenNewBast: () => void;
   onOpenDocs: () => void;
-  onLogout: () => void; // Prop baru untuk fungsi keluar
+  onLogout: () => void;
   pendingCount?: number;
 }
 
@@ -30,7 +30,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="flex items-center gap-2">
           <span className="flex h-2 w-2 rounded-full bg-emerald-400"></span>
           <span className="font-medium text-slate-100">Portal BAST Perusahaan</span>
-          <span className="text-slate-400 hidden sm:inline">• IT Asset & License Management</span>
+          <span className="text-slate-400 hidden sm:inline">IT Asset & License Management</span>
         </div>
         <button
           type="button"
@@ -44,19 +44,33 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Logo & Title */}
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-lg shadow-sm">
-              <Laptop className="w-5 h-5" />
-            </div>
-            <div>
+          
+          {/* Logo & Title (Berdasarkan referensi desain baru) */}
+          <div className="flex items-center gap-3 md:gap-4 py-2">
+            {/* Logo Transjakarta */}
+            <img 
+              src="/transjakarta-logo.png" 
+              alt=" Transjakarta Logo" 
+              className="h-7 sm:h-8 md:h-10 w-auto object-contain" 
+            />
+            
+            {/* Garis Pemisah Vertikal */}
+            <div className="hidden sm:block h-10 w-px bg-slate-300"></div>
+            
+            {/* Typography BAST Digital IT */}
+            <div className="hidden sm:flex flex-col justify-center gap-1">
               <div className="flex items-center gap-2">
-                <span className="font-semibold text-slate-900 text-base leading-tight">BAST Digital</span>
-                <span className="text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-100">
-                  {currentRole.toUpperCase()}
+                <span className="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-[#ebf4ff] text-[#00519c] border border-[#d1e3fa]">
+                  BAST DIGITAL IT
+                </span>
+                {/* Badge Role User (Admin/PIC) */}
+                <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                  {currentRole}
                 </span>
               </div>
-              <p className="text-xs text-slate-500">Pemenuhan Lisensi Software Korporat</p>
+              <p className="text-[11px] font-medium text-slate-500">
+                PT Transportasi Jakarta • Manajemen Lisensi Software
+              </p>
             </div>
           </div>
 
@@ -104,7 +118,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span>Monitoring (H-30)</span>
               </button>
               
-              {/* TAB BARU: Manajemen Karyawan */}
               <button
                 onClick={() => setActiveTab('employees')}
                 className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors flex items-center gap-1.5 ${
