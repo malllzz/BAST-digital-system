@@ -66,7 +66,7 @@ export const UserPortal: React.FC<UserPortalProps> = ({
       {pendingBast ? (
         <div
           id="pending-bast-card"
-          className="bg-gradient-to-br from-amber-500/10 via-white to-amber-500/5 rounded-2xl border-2 border-amber-400/80 p-6 sm:p-7 shadow-md space-y-5 relative overflow-hidden"
+          className="bg-linear-to-br from-amber-500/10 via-white to-amber-500/5 rounded-2xl border-2 border-amber-400/80 p-6 sm:p-7 shadow-md space-y-5 relative overflow-hidden"
         >
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-amber-200/70 pb-4">
             <div className="flex items-center gap-2.5">
@@ -124,7 +124,7 @@ export const UserPortal: React.FC<UserPortalProps> = ({
               </div>
               <p className="text-[11px] text-slate-500">
                 Dengan menekan tombol konfirmasi, Anda menyatakan telah menerima lisensi software tersebut dan dapat
-                digunakan dengan baik. Konfirmasi ini tervalidasi menggunakan autentikasi akun Microsoft 365 (SSO).
+                digunakan dengan baik. Konfirmasi ini akan menjadi evidence bahwa Anda telah menerima lisensi tersebut.
               </p>
             </div>
 
@@ -145,12 +145,12 @@ export const UserPortal: React.FC<UserPortalProps> = ({
                 {confirmingId === pendingBast.id ? (
                   <>
                     <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    <span>Memvalidasi SSO M365...</span>
+                    <span>Memvalidasi...</span>
                   </>
                 ) : (
                   <>
                     <ShieldCheck className="w-4 h-4" />
-                    <span>Konfirmasi Penerimaan Lisensi (M365 SSO)</span>
+                    <span>Konfirmasi Penerimaan Lisensi</span>
                   </>
                 )}
               </button>
@@ -225,7 +225,7 @@ export const UserPortal: React.FC<UserPortalProps> = ({
                         <div className="space-y-0.5">
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800">
                             <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                            Terkonfirmasi SSO
+                            Terkonfirmasi User
                           </span>
                           <div className="text-[10px] text-slate-400 font-mono">
                             {rec.auditAuthUser || rec.recipientEmail}
