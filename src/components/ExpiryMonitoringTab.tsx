@@ -6,14 +6,16 @@ interface ExpiryMonitoringTabProps {
   records: BastRecord[];
   onTriggerReminder: (bastId: string, itemId: string) => void;
   onPreviewEmail: (record: BastRecord, item: LicenseItem) => void;
+  // Tambahan Props untuk mengubah data di Database melalui parent component
+  onToggleAutoReminder: (bastId: string, itemId: string, isEnabled: boolean) => void;
+  onToggleAllAutoReminder: (updates: {bastId: string, itemId: string, isEnabled: boolean}[]) => void;
 }
 
-// Fungsi helper untuk menghitung sisa hari secara realtime (Berdasarkan hari ini)
 const calculateRealtimeDaysRemaining = (expiryDate?: string) => {
   if (!expiryDate) return null;
   
   const today = new Date();
-  today.setHours(0, 0, 0, 0); // Reset waktu ke tengah malam agar akurat
+  today.setHours(0, 0, 0, 0);
 
   const exp = new Date(expiryDate);
   exp.setHours(0, 0, 0, 0);
@@ -26,17 +28,13 @@ export const ExpiryMonitoringTab: React.FC<ExpiryMonitoringTabProps> = ({
   records,
   onTriggerReminder,
   onPreviewEmail,
+  onToggleAutoReminder,
+  onToggleAllAutoReminder,
 }) => {
   const [filterType, setFilterType] = useState<'h30' | 'expiring' | 'all'>('h30');
   const [searchQuery, setSearchQuery] = useState('');
-  
-  // State untuk sorting (asc = Terdekat ke expired, desc = Terlama ke expired)
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
-  // State untuk menyimpan status automasi per item (Key: itemId, Value: boolean true/false)
-  const [autoEnabledMap, setAutoEnabledMap] = useState<Record<string, boolean>>({});
-
-  // Flatten items dengan parent BAST record dan kalkulasi hari yang realtime
   const licenseRows = useMemo(() => {
     const list: {
       bast: BastRecord;
@@ -61,10 +59,8 @@ export const ExpiryMonitoringTab: React.FC<ExpiryMonitoringTabProps> = ({
     return list;
   }, [records]);
 
-  // Filter & Search & Sort
   const filteredAndSortedRows = useMemo(() => {
     let result = licenseRows.filter((row) => {
-      // 1. Search
       const query = searchQuery.toLowerCase();
       const matchSearch =
         row.item.softwareName.toLowerCase().includes(query) ||
@@ -75,16 +71,13 @@ export const ExpiryMonitoringTab: React.FC<ExpiryMonitoringTabProps> = ({
 
       if (!matchSearch) return false;
 
-      // 2. Filter
       if (filterType === 'h30') return row.isH30;
       if (filterType === 'expiring') return row.item.licenseType !== 'Perpetual';
       
       return true;
     });
 
-    // 3. Sort
     result.sort((a, b) => {
-      // Perpetual selalu taruh di paling bawah karena tidak punya expired
       if (a.item.licenseType === 'Perpetual' && b.item.licenseType === 'Perpetual') return 0;
       if (a.item.licenseType === 'Perpetual') return 1;
       if (b.item.licenseType === 'Perpetual') return -1;
@@ -92,8 +85,8 @@ export const ExpiryMonitoringTab: React.FC<ExpiryMonitoringTabProps> = ({
       const daysA = a.daysRemaining ?? Infinity;
       const daysB = b.daysRemaining ?? Infinity;
 
-      if (sortOrder === 'asc') return daysA - daysB; // Terdekat duluan
-      return daysB - daysA; // Terlama duluan
+      if (sortOrder === 'asc') return daysA - daysB;
+      return daysB - daysA;
     });
 
     return result;
@@ -101,35 +94,23 @@ export const ExpiryMonitoringTab: React.FC<ExpiryMonitoringTabProps> = ({
 
   const h30Count = licenseRows.filter((r) => r.isH30).length;
 
-  // --- Handlers untuk Toggle Automasi ---
-  
-  const handleToggleIndividual = (itemId: string) => {
-    setAutoEnabledMap(prev => ({
-      ...prev,
-      [itemId]: !prev[itemId]
-    }));
-  };
-
-  // Cek apakah semua item yang sedang difilter (dan bukan perpetual) sudah diaktifkan automasinya
   const nonPerpetualVisibleItems = filteredAndSortedRows.filter(row => row.item.licenseType !== 'Perpetual');
-  const isAllEnabled = nonPerpetualVisibleItems.length > 0 && nonPerpetualVisibleItems.every(row => autoEnabledMap[row.item.id]);
+  const isAllEnabled = nonPerpetualVisibleItems.length > 0 && nonPerpetualVisibleItems.every(row => row.item.isAutoReminderEnabled);
 
   const handleToggleAll = () => {
-    const newMap = { ...autoEnabledMap };
-    // Jika semua sudah aktif, maka matikan semua. Jika belum, aktifkan semua.
     const targetState = !isAllEnabled; 
+    const updates = nonPerpetualVisibleItems.map(row => ({
+      bastId: row.bast.id,
+      itemId: row.item.id,
+      isEnabled: targetState
+    }));
     
-    nonPerpetualVisibleItems.forEach(row => {
-      newMap[row.item.id] = targetState;
-    });
-    
-    setAutoEnabledMap(newMap);
+    // Memicu update batch ke database
+    onToggleAllAutoReminder(updates);
   };
 
   return (
     <div id="expiry-monitoring-view" className="space-y-6">
-      
-      {/* Automasi banner */}
       <div className="bg-linear-to-r from-blue-900 to-indigo-900 text-white rounded-2xl p-6 shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="space-y-1">
           <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-blue-500/30 text-blue-200 text-xs font-medium border border-blue-400/30">
@@ -149,12 +130,8 @@ export const ExpiryMonitoringTab: React.FC<ExpiryMonitoringTabProps> = ({
         </div>
       </div>
 
-      {/* Area Filter, Search, Global Toggle & Sorting */}
       <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-        
-        {/* Baris Atas: Search & Global Toggle */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          
           <div className="relative w-full sm:w-96">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
@@ -183,7 +160,6 @@ export const ExpiryMonitoringTab: React.FC<ExpiryMonitoringTabProps> = ({
 
         <div className="border-t border-slate-100 pt-3"></div>
 
-        {/* Baris Bawah: Filter Buttons & Sort */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-1.5 w-full md:w-auto">
             <button
@@ -232,17 +208,16 @@ export const ExpiryMonitoringTab: React.FC<ExpiryMonitoringTabProps> = ({
         </div>
       </div>
 
-      {/* Table */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
                 <th className="p-3.5">Software & Akun</th>
-                <th className="p-3.5">Karyawan Penerima (NIK)</th>
+                <th className="p-3.5">Penerima (NIK)</th>
                 <th className="p-3.5">No. BAST</th>
                 <th className="p-3.5">Tipe & Tanggal Expired</th>
-                <th className="p-3.5">Sisa Hari (Realtime)</th>
+                <th className="p-3.5">Sisa Hari</th>
                 <th className="p-3.5 text-right min-w-60">Automasi & Aksi Email</th>
               </tr>
             </thead>
@@ -255,7 +230,7 @@ export const ExpiryMonitoringTab: React.FC<ExpiryMonitoringTabProps> = ({
                 </tr>
               ) : (
                 filteredAndSortedRows.map(({ bast, item, daysRemaining, isH30 }) => {
-                  const isAutoEnabled = autoEnabledMap[item.id] || false;
+                  const isAutoEnabled = item.isAutoReminderEnabled || false;
                   
                   return (
                     <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
@@ -281,7 +256,6 @@ export const ExpiryMonitoringTab: React.FC<ExpiryMonitoringTabProps> = ({
                         </div>
                       </td>
 
-                      {/* Sisa Hari Realtime */}
                       <td className="p-3.5 align-top whitespace-nowrap">
                         {item.licenseType === 'Perpetual' ? (
                           <span className="text-slate-400 text-xs">-</span>
@@ -301,24 +275,21 @@ export const ExpiryMonitoringTab: React.FC<ExpiryMonitoringTabProps> = ({
                         )}
                       </td>
 
-                      {/* Aksi & Automasi */}
                       <td className="p-3.5 align-top text-right">
                         {item.licenseType !== 'Perpetual' ? (
                           <div className="flex flex-col items-end gap-2.5">
-                            {/* Toggle Automasi Individual */}
                             <div className="flex items-center justify-end gap-2">
                               <span className={`text-[10px] font-medium ${isAutoEnabled ? 'text-emerald-600' : 'text-slate-400'}`}>
                                 {isAutoEnabled ? 'Automasi Aktif' : 'Automasi Mati'}
                               </span>
                               <div 
-                                onClick={() => handleToggleIndividual(item.id)}
+                                onClick={() => onToggleAutoReminder(bast.id, item.id, !isAutoEnabled)}
                                 className={`relative inline-flex h-5 w-9 items-center rounded-full cursor-pointer transition-colors ${isAutoEnabled ? 'bg-emerald-500' : 'bg-slate-300'}`}
                               >
                                 <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${isAutoEnabled ? 'translate-x-4.5' : 'translate-x-1'}`} />
                               </div>
                             </div>
 
-                            {/* Tombol Aksi Manual */}
                             <div className="flex items-center justify-end gap-1.5">
                               <button
                                 type="button"

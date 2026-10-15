@@ -11,6 +11,7 @@ export interface LicenseItem {
   expiryDate?: string;
   isReminderSent?: boolean;
   itemNotes?: string;
+  isAutoReminderEnabled?: boolean;
 }
 
 export interface BastRecord {

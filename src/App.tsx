@@ -188,11 +188,14 @@ export default function App() {
             bastId: insertedBast.id,
             employeeName: newBast.recipientName,
             employeeNik: newBast.recipientNIK,
+            department: newBast.department,
             bastNumber: newBast.bastNumber,
             items: items,
             softwareName: firstItem ? firstItem.softwareName : 'Multiple Licenses',
             licenseType: firstItem ? firstItem.licenseType : '-',
-            expiryDate: firstItem?.expiryDate ? firstItem.expiryDate : '-'
+            expiryDate: firstItem?.expiryDate ? firstItem.expiryDate : '-',
+            picName: currentUser.name, 
+            picEmail: currentUser.email
           })
         });
         showToast('BAST Tersimpan & Email Terkirim!', `Nomor ${newBast.bastNumber} sukses dibuat.`);
@@ -259,10 +262,13 @@ export default function App() {
             type: 'expiry_reminder', // <-- Penanda penting untuk Backend
             employeeName: targetBast.recipientName,
             employeeNik: targetBast.recipientNIK,
+            department: targetBast.department,
             bastNumber: targetBast.bastNumber,
             softwareName: targetItem.softwareName,
             licenseType: targetItem.licenseType,
-            expiryDate: targetItem.expiryDate
+            expiryDate: targetItem.expiryDate,
+            picName: currentUser.name,
+            picEmail: currentUser.email
           })
         });
       }
@@ -291,6 +297,55 @@ export default function App() {
     } catch (err: any) {
       console.error("Gagal menghapus data:", err);
       alert("Gagal menghapus data: " + err.message);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // --- AKSI 5: TOGGLE AUTOMASI INDIVIDUAL ---
+  const handleToggleAutoReminder = async (bastId: string, itemId: string, isEnabled: boolean) => {
+    setIsProcessing(true);
+    try {
+      // Update langsung ke tabel license_items di Supabase
+      const { error } = await supabase
+        .from('license_items')
+        .update({ isAutoReminderEnabled: isEnabled })
+        .eq('id', itemId);
+
+      if (error) throw error;
+
+      showToast('Automasi Diperbarui', `Automasi email untuk lisensi ini telah ${isEnabled ? 'diaktifkan' : 'dimatikan'}.`);
+      await fetchRecords(); // Refresh data untuk mendapatkan state terbaru dari DB
+    } catch (err: any) {
+      console.error("Gagal mengubah automasi:", err);
+      alert("Gagal mengubah automasi: " + err.message);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // --- AKSI 6: TOGGLE AUTOMASI GLOBAL (Semua yang difilter) ---
+  const handleToggleAllAutoReminder = async (updates: {bastId: string, itemId: string, isEnabled: boolean}[]) => {
+    if (updates.length === 0) return;
+    setIsProcessing(true);
+    try {
+      // Ekstrak ID apa saja yang akan diubah
+      const itemIds = updates.map(u => u.itemId);
+      const targetState = updates[0].isEnabled; // Ambil value true/false yang seragam
+
+      // Update banyak baris sekaligus menggunakan .in()
+      const { error } = await supabase
+        .from('license_items')
+        .update({ isAutoReminderEnabled: targetState })
+        .in('id', itemIds);
+
+      if (error) throw error;
+
+      showToast('Automasi Global Diperbarui', `${updates.length} lisensi berhasil diubah ke status ${targetState ? 'Aktif' : 'Nonaktif'}.`);
+      await fetchRecords();
+    } catch (err: any) {
+      console.error("Gagal mengubah automasi massal:", err);
+      alert("Gagal mengubah automasi massal: " + err.message);
     } finally {
       setIsProcessing(false);
     }
@@ -459,6 +514,8 @@ export default function App() {
               records={records}
               onTriggerReminder={handleTriggerReminder}
               onPreviewEmail={(rec, item) => setEmailModal({ isOpen: true, type: 'expiry_reminder', record: rec, item })}
+              onToggleAutoReminder={handleToggleAutoReminder} // <-- TAMBAHKAN INI
+              onToggleAllAutoReminder={handleToggleAllAutoReminder} // <-- TAMBAHKAN INI
             />
           ) : (
             <EmployeeManagementTab
