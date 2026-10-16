@@ -2,8 +2,8 @@ import { createClient } from '@supabase/supabase-js';
 import nodemailer from 'nodemailer';
 
 // Inisialisasi Supabase khusus untuk backend API
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
+const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default async function handler(req: any, res: any) {
