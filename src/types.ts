@@ -1,6 +1,6 @@
 export type LicenseType = 'Tahunan' | 'Bulanan' | 'Perpetual';
 
-export type BastStatus = 'Menunggu Konfirmasi' | 'Selesai';
+export type BastStatus = 'Menunggu Konfirmasi' | 'Pending User' | 'Pending PIC' | 'Selesai';
 
 export interface LicenseItem {
   id: string;
@@ -26,6 +26,8 @@ export interface BastRecord {
   department: string;
   picName: string;
   picEmail: string;
+  picPosition: string;
+  picDepartment: string;
   createdAt: string;
   status: BastStatus;
   confirmationDate?: string;

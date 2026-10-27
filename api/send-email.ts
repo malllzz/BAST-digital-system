@@ -24,7 +24,9 @@ export default async function handler(req: any, res: any) {
     poNumber,
     department,
     picName,
-    picEmail
+    picEmail,
+    picPosition,
+    picDepartment
   } = req.body;
 
   const confirmationLink = `https://bast-digital-system.vercel.app/konfirmasi?id=${bastId}`;
@@ -128,14 +130,17 @@ export default async function handler(req: any, res: any) {
         <table style="width: 100%; border: 1px solid #e2e8f0; border-radius: 10px; background-color: #f8fafc; margin-bottom: 24px; font-size: 13px; border-collapse: collapse;">
           <tr>
             <td style="padding: 16px; width: 50%; vertical-align: top;">
-              <div style="color: #64748b; margin-bottom: 4px; font-size: 12px;">Penerima Lisensi:</div>
+              <div style="color: #64748b; margin-bottom: 6px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Pihak Kedua (Penerima):</div>
               <div style="font-weight: bold; color: #0f172a; font-size: 15px; margin-bottom: 4px;">${employeeName}</div>
-              <div style="color: #64748b; font-family: monospace; font-size: 12px;">NIK: ${employeeNik} &bull; ${department || 'Departemen User'}</div>
+              <div style="color: #475569; font-size: 12px; margin-bottom: 2px;">NIK: ${employeeNik}</div>
+              <div style="color: #475569; font-size: 12px; margin-bottom: 2px;">Dept: ${department || '-'}</div>
             </td>
             <td style="padding: 16px; width: 50%; vertical-align: top; border-left: 1px solid #e2e8f0;">
-              <div style="color: #64748b; margin-bottom: 4px; font-size: 12px;">PIC IT Penyerah Lisensi:</div>
+              <div style="color: #64748b; margin-bottom: 6px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Pihak Pertama (Penyerah):</div>
               <div style="font-weight: bold; color: #0f172a; font-size: 15px; margin-bottom: 4px;">${picName || 'Dimas Pratama'}</div>
-              <div style="color: #64748b; font-family: monospace; font-size: 12px;">${picEmail || 'dimas.pratama@corp.id'}</div>
+              <div style="color: #475569; font-size: 12px; margin-bottom: 2px;">PIC: ${picPosition || 'IT Asset Management'}</div>
+              <div style="color: #475569; font-size: 12px; margin-bottom: 2px;">Dept: ${picDepartment || 'Divisi TI'}</div>
+              <div style="color: #64748b; font-family: monospace; font-size: 11px;">Instansi: PT Transportasi Jakarta</div>
             </td>
           </tr>
         </table>
@@ -158,7 +163,7 @@ export default async function handler(req: any, res: any) {
         </div>
 
         <p style="color: #475569; font-size: 14px; line-height: 1.6; margin-bottom: 24px;">
-          Sesuai kebijakan tata kelola IT korporat, mohon luangkan waktu 1 menit untuk memeriksa aktivasi software dan melakukan konfirmasi serah terima secara digital.
+          Sesuai kebijakan tata kelola IT korporat, mohon luangkan waktu 1 menit untuk memeriksa aktivasi software dan melakukan konfirmasi penerimaan secara digital.
         </p>
         
         <div style="text-align: center; margin: 32px 0; border-bottom: 1px solid #e2e8f0; padding-bottom: 32px;">

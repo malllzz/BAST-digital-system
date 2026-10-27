@@ -46,8 +46,10 @@ export const BastFormModal: React.FC<BastFormModalProps> = ({
   const [isPoPending, setIsPoPending] = useState(false);
 
   // PIC & Notes
-  const [picName, setPicName] = useState('Dimas Pratama');
-  const [picEmail, setPicEmail] = useState('dimas.pratama@transjakarta.co.id');
+  const [picName, setPicName] = useState('Margaretha Irfiani Maheswari');
+  const [picEmail, setPicEmail] = useState('margaretha.maheswari@transjakarta.co.id');
+  const [picPosition, setPicPosition] = useState('Aset dan Inventory Teknologi Informasi');
+  const [picDepartment, setPicDepartment] = useState('Perencanaan dan Inovasi Teknologi Informasi');
   const [notes, setNotes] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -89,6 +91,8 @@ export const BastFormModal: React.FC<BastFormModalProps> = ({
       setIsPoPending(initialData.isPoPending || false);
       setPicName(initialData.picName);
       setPicEmail(initialData.picEmail);
+      setPicPosition(initialData.picPosition || 'Aset dan Inventory Teknologi Informasi');
+      setPicDepartment(initialData.picDepartment || 'Perencanaan dan Inovasi Teknologi Informasi');
       setNotes(initialData.notes || '');
       setItems(initialData.items.map(it => ({ ...it }))); 
     } else if (isOpen && !initialData) {
@@ -99,8 +103,10 @@ export const BastFormModal: React.FC<BastFormModalProps> = ({
       setPoNumber('');
       setNotaNumber('');
       setIsPoPending(false);
-      setPicName('Dimas Pratama');
-      setPicEmail('dimas.pratama@transjakarta.co.id');
+      setPicName('Margaretha Irfiani Maheswari');
+      setPicEmail('margaretha.maheswari@transjakarta.co.id');
+      setPicPosition('Aset dan Inventory Teknologi Informasi');
+      setPicDepartment('Perencanaan dan Inovasi Teknologi Informasi');
       setNotes('');
       setItems([{
         id: `item-${Date.now()}-1`, 
@@ -110,6 +116,7 @@ export const BastFormModal: React.FC<BastFormModalProps> = ({
         startDate: new Date().toISOString().split('T')[0],
         expiryDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0],
         isReminderSent: false,
+        itemNotes: ''
       }]);
     }
   }, [isOpen, initialData]);
@@ -152,6 +159,7 @@ export const BastFormModal: React.FC<BastFormModalProps> = ({
         .toISOString()
         .split('T')[0],
       isReminderSent: false,
+      itemNotes: ''
     };
     setItems([...items, newItem]);
   };
@@ -218,8 +226,8 @@ export const BastFormModal: React.FC<BastFormModalProps> = ({
       return;
     }
 
-    if (!picName.trim() || !picEmail.trim()) {
-      setErrorMessage('Nama dan Email PIC Penyerah tidak boleh kosong.');
+    if (!picName.trim() || !picEmail.trim() || !picPosition.trim() || !picDepartment.trim()) {
+      setErrorMessage('Nama, Email, PIC Penyerah, dan Departemen PIC tidak boleh kosong.');
       return;
     }
 
@@ -256,8 +264,10 @@ export const BastFormModal: React.FC<BastFormModalProps> = ({
       department: department.trim(),
       picName: picName.trim(),
       picEmail: picEmail.trim(),
+      picPosition: picPosition.trim(),
+      picDepartment: picDepartment.trim(),
       createdAt: initialData ? initialData.createdAt : new Date().toISOString(),
-      status: initialData ? initialData.status : 'Menunggu Konfirmasi',
+      status: initialData ? initialData.status : 'Pending User',
       notes: notes.trim(),
       items: items,
     };
@@ -286,7 +296,7 @@ export const BastFormModal: React.FC<BastFormModalProps> = ({
               </span>
             </div>
             <p className="text-xs text-slate-400 mt-0.5">
-              Input data serah terima software untuk satu penerima (bisa multi-lisensi sekaligus)
+              Input data serah terima lisensi software untuk satu penerima
             </p>
           </div>
           <button
@@ -332,7 +342,7 @@ export const BastFormModal: React.FC<BastFormModalProps> = ({
           {/* Bagian 1: Data Penerima */}
           <div className="space-y-4">
             <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 border-b border-slate-100 pb-2">
-              1. Data Karyawan Penerima Lisensi (Pihak Kedua)
+              1. Penerima Lisensi (Pihak Kedua)
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="relative" ref={nikWrapperRef}>
@@ -351,7 +361,6 @@ export const BastFormModal: React.FC<BastFormModalProps> = ({
                   className="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg focus:ring-1 focus:ring-blue-500 focus:outline-none"
                   required
                 />
-                {/* Autocomplete Dropdown NIK */}
                 {showNikSuggestions && recipientNIK.length > 0 && nikSuggestions.length > 0 && (
                   <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
                     {nikSuggestions.map((u) => (
@@ -384,7 +393,6 @@ export const BastFormModal: React.FC<BastFormModalProps> = ({
                   className="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg focus:ring-1 focus:ring-blue-500 focus:outline-none"
                   required
                 />
-                {/* Autocomplete Dropdown NAMA */}
                 {showNameSuggestions && recipientName.length > 0 && nameSuggestions.length > 0 && (
                   <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
                     {nameSuggestions.map((u) => (
@@ -403,7 +411,7 @@ export const BastFormModal: React.FC<BastFormModalProps> = ({
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Email Microsoft 365 <span className="text-rose-500">*</span>
+                  Email <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="email"
@@ -435,10 +443,10 @@ export const BastFormModal: React.FC<BastFormModalProps> = ({
           <div className="space-y-4">
             <div>
               <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                2. Dokumen Dasar & Referensi Pengadaan
+                2. Nomor PO dan Nota
               </h2>
               <p className="text-[11px] text-slate-400 mt-0.5">
-                Nomor Purchase Order (PO) dan Nota Permohonan / Tiket Pengadaan sebagai dasar audit aset IT
+                Nomor Purchase Order (PO) dan Nota Permohonan
               </p>
             </div>
             
@@ -449,14 +457,14 @@ export const BastFormModal: React.FC<BastFormModalProps> = ({
                   checked={isPoPending}
                   onChange={(e) => {
                     setIsPoPending(e.target.checked);
-                    if(e.target.checked) setPoNumber(''); // Reset isi PO jika dicentang
+                    if(e.target.checked) setPoNumber(''); 
                   }}
                   className="mt-1 w-4 h-4 text-amber-600 rounded border-slate-300 focus:ring-amber-500"
                 />
                 <div>
                   <div className="flex items-center gap-1.5 text-xs font-bold text-amber-900">
                     <CreditCard className="w-4 h-4" />
-                    <span>Transaksi Kartu Kredit Korporat (Nomor PO Belum Terbit / Disusulkan Belakangan)</span>
+                    <span>Transaksi Kartu Kredit Korporat (Nomor PO Belum Terbit)</span>
                   </div>
                   <p className="text-[11px] text-amber-800 mt-1">
                     Centang jika lisensi dibeli instan & diserahkan sekarang; nomor PO resmi akan diinput belakangan via dashboard PIC setelah terbit dari Finance.
@@ -482,12 +490,11 @@ export const BastFormModal: React.FC<BastFormModalProps> = ({
                     : "border-slate-200 focus:ring-1 focus:ring-blue-500"
                   }`}
                 />
-                <p className="text-[10px] text-slate-400 mt-1">Nomor PO pengadaan lisensi dari vendor / tim procurement</p>
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Nomor Nota Permohonan / Memo Dinas <span className="font-normal text-slate-400">(Opsional)</span>
+                  Nomor Nota Permohonan <span className="font-normal text-slate-400">(Opsional)</span>
                 </label>
                 <input
                   type="text"
@@ -496,7 +503,6 @@ export const BastFormModal: React.FC<BastFormModalProps> = ({
                   placeholder="Contoh: ND-ENG/VIII/2026/089 atau No. Tiket"
                   className="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg focus:ring-1 focus:ring-blue-500 focus:outline-none"
                 />
-                <p className="text-[10px] text-slate-400 mt-1">Nomor surat / nota dinas permohonan dari departemen pemohon</p>
               </div>
             </div>
           </div>
@@ -506,7 +512,7 @@ export const BastFormModal: React.FC<BastFormModalProps> = ({
             <div className="flex items-center justify-between border-b border-slate-100 pb-2">
               <div>
                 <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                  3. Rincian Lisensi Software (Multi-Item)
+                  3. Rincian Lisensi Software
                 </h2>
                 <p className="text-[11px] text-slate-400 mt-0.5">
                   Tambahkan satu atau lebih lisensi software yang diserahkan dalam BAST ini
@@ -549,7 +555,6 @@ export const BastFormModal: React.FC<BastFormModalProps> = ({
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
-                    {/* Software Name with Preset */}
                     <div className="sm:col-span-4">
                       <label className="block text-[11px] font-semibold text-slate-600 mb-1">
                         Nama Software / Aplikasi
@@ -569,7 +574,6 @@ export const BastFormModal: React.FC<BastFormModalProps> = ({
                       </datalist>
                     </div>
 
-                    {/* Tipe Lisensi */}
                     <div className="sm:col-span-2">
                       <label className="block text-[11px] font-semibold text-slate-600 mb-1">
                         Tipe Lisensi
@@ -585,7 +589,6 @@ export const BastFormModal: React.FC<BastFormModalProps> = ({
                       </select>
                     </div>
 
-                    {/* Key / Account */}
                     <div className="sm:col-span-3">
                       <label className="block text-[11px] font-semibold text-slate-600 mb-1">
                         License Key / Akun Login / Seat
@@ -599,7 +602,6 @@ export const BastFormModal: React.FC<BastFormModalProps> = ({
                       />
                     </div>
 
-                    {/* Start Date */}
                     <div className="sm:col-span-3">
                       <div className="grid grid-cols-2 gap-2">
                         <div>
@@ -631,6 +633,19 @@ export const BastFormModal: React.FC<BastFormModalProps> = ({
                         </div>
                       </div>
                     </div>
+
+                    <div className="sm:col-span-12 pt-1 border-t border-slate-100 mt-1">
+                      <label className="block text-[10px] font-medium text-slate-500 mb-1">
+                        Keterangan Tambahan untuk Lisensi Ini (Opsional)
+                      </label>
+                      <input
+                        type="text"
+                        value={item.itemNotes || ''}
+                        onChange={(e) => handleItemChange(idx, 'itemNotes', e.target.value)}
+                        placeholder="Misal: Key ini di-share dengan user lain / Serial untuk Device A"
+                        className="w-full text-xs px-3 py-1.5 border border-slate-200 rounded-lg bg-white focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                      />
+                    </div>
                   </div>
                 </div>
               ))}
@@ -640,12 +655,12 @@ export const BastFormModal: React.FC<BastFormModalProps> = ({
           {/* Bagian 4: PIC & Catatan */}
           <div className="space-y-4">
             <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 border-b border-slate-100 pb-2">
-              4. PIC Penyerah (Pihak Pertama) & Catatan Tambahan
+              4. PIC Penyerah (Pihak Pertama) & Catatan Tambahan Dokumen
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Nama PIC IT Asset Management <span className="text-rose-500">*</span>
+                  Nama PIC <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -671,13 +686,39 @@ export const BastFormModal: React.FC<BastFormModalProps> = ({
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Catatan Serah Terima (Opsional)
+                  PIC Penyerah (Unit Kerja) <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={picPosition}
+                  onChange={(e) => setPicPosition(e.target.value)}
+                  placeholder="Misal: Aset dan Inventory TI"
+                  className="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Departemen <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={picDepartment}
+                  onChange={(e) => setPicDepartment(e.target.value)}
+                  placeholder="Misal: Perencanaan dan Inovasi TI"
+                  className="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="lg:col-span-2">
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Catatan BAST (Opsional)
                 </label>
                 <input
                   type="text"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Misal: Harap aktivasi sebelum tanggal 25"
+                  placeholder="Misal: Harap aktivasi sblm tgl 25"
                   className="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg focus:ring-1 focus:ring-blue-500 focus:outline-none"
                 />
               </div>

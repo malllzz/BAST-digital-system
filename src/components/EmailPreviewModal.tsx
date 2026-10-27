@@ -50,19 +50,19 @@ export const EmailPreviewModal: React.FC<EmailPreviewModalProps> = ({
         {/* Email Meta */}
         <div className="bg-slate-50 p-4 border-b border-slate-200 text-sm space-y-2 font-sans z-10">
           <div className="flex">
-            <span className="text-slate-500 w-20">Dari:</span>
+            <span className="text-slate-500 w-20 shrink-0">Dari:</span>
             <span className="font-semibold text-slate-800">
               IT Asset Management Notification &lt;no-reply.itasset@corp.id&gt;
             </span>
           </div>
           <div className="flex">
-            <span className="text-slate-500 w-20">Kepada:</span>
+            <span className="text-slate-500 w-20 shrink-0">Kepada:</span>
             <span className="font-medium text-slate-800">
               {recipientName} ({recipientNIK}) &lt;{recipientEmail}&gt;
             </span>
           </div>
           <div className="flex">
-            <span className="text-slate-500 w-20">Subjek:</span>
+            <span className="text-slate-500 w-20 shrink-0">Subjek:</span>
             <span className="font-bold text-slate-900">
               {type === 'handover'
                 ? `[PENTING] Penyerahan Lisensi Software Baru - No. ${record?.bastNumber || 'BAST-IT/2026/09/04'}`
@@ -77,7 +77,7 @@ export const EmailPreviewModal: React.FC<EmailPreviewModalProps> = ({
           {/* Watermark Background SVG */}
           <div className="absolute inset-0 z-0 flex items-center justify-center opacity-[0.03] pointer-events-none">
             <img 
-              src="/logo-transjakarta.svg" 
+              src="/transjakarta-logo.svg" 
               alt="Watermark" 
               className="w-3/4 max-w-md h-auto transform -rotate-12 grayscale"
             />
@@ -100,20 +100,21 @@ export const EmailPreviewModal: React.FC<EmailPreviewModalProps> = ({
                   .
                 </p>
 
-                {/* Data Karyawan & PIC Penyerah (Desain Box Baru) */}
-                <div className="flex flex-col sm:flex-row gap-4 p-5 bg-slate-50/80 rounded-xl border border-slate-200">
-                  <div className="flex-1 space-y-1">
-                    <span className="text-slate-500 block text-xs">Penerima Lisensi:</span>
-                    <span className="font-bold text-slate-800 block text-sm">{recipientName}</span>
-                    <span className="text-slate-500 block font-mono text-xs">
-                      NIK: {recipientNIK} &bull; {record?.department || 'Planning and Inovation'}
-                    </span>
+                {/* Data Karyawan & PIC Penyerah */}
+                <div className="flex flex-col sm:flex-row gap-0 rounded-xl border border-slate-200 bg-slate-50/50 overflow-hidden">
+                  <div className="flex-1 p-4 space-y-1">
+                    <div className="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-1.5">Pihak Kedua (Penerima):</div>
+                    <div className="font-bold text-slate-900 text-base">{recipientName}</div>
+                    <div className="text-slate-600 text-xs">NIK: {recipientNIK}</div>
+                    <div className="text-slate-600 text-xs">Dept: {record?.department || '-'}</div>
                   </div>
                   <div className="hidden sm:block w-px bg-slate-200"></div>
-                  <div className="flex-1 space-y-1">
-                    <span className="text-slate-500 block text-xs">PIC IT Penyerah Lisensi:</span>
-                    <span className="font-bold text-slate-800 block text-sm">{record?.picName || 'Dimas Pratama'}</span>
-                    <span className="text-slate-500 block font-mono text-xs">{record?.picEmail || 'dimas.pratama@corp.id'}</span>
+                  <div className="flex-1 p-4 space-y-1 border-t sm:border-t-0 border-slate-200">
+                    <div className="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-1.5">Pihak Pertama (Penyerah):</div>
+                    <div className="font-bold text-slate-900 text-base">{record?.picName || 'Dimas Pratama'}</div>
+                    <div className="text-slate-600 text-xs">PIC: {record?.picPosition || 'IT Asset Management'}</div>
+                    <div className="text-slate-600 text-xs">Dept: {record?.picDepartment || 'Divisi TI'}</div>
+                    <div className="text-slate-500 text-[11px] font-mono mt-1">Instansi: PT Transportasi Jakarta</div>
                   </div>
                 </div>
 
@@ -155,7 +156,7 @@ export const EmailPreviewModal: React.FC<EmailPreviewModalProps> = ({
 
                 <p className="leading-relaxed">
                   Sesuai kebijakan tata kelola IT korporat, mohon luangkan waktu 1 menit untuk memeriksa aktivasi software
-                  dan melakukan konfirmasi serah terima secara digital.
+                  dan melakukan konfirmasi penerimaan secara digital.
                 </p>
 
                 <div className="pt-2 text-center pb-4 border-b border-slate-100">
