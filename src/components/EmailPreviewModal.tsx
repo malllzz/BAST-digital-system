@@ -36,7 +36,7 @@ export const EmailPreviewModal: React.FC<EmailPreviewModalProps> = ({
         <div className="bg-[#0078D4] text-white px-5 py-3 flex items-center justify-between z-10">
           <div className="flex items-center gap-2">
             <Mail className="w-5 h-5" />
-            <span className="font-semibold text-sm">Simulasi Notifikasi Microsoft Outlook (Power Automate)</span>
+            <span className="font-semibold text-sm">Preview Email</span>
           </div>
           <button
             type="button"
@@ -102,19 +102,19 @@ export const EmailPreviewModal: React.FC<EmailPreviewModalProps> = ({
 
                 {/* Data Karyawan & PIC Penyerah */}
                 <div className="flex flex-col sm:flex-row gap-0 rounded-xl border border-slate-200 bg-slate-50/50 overflow-hidden">
+                  <div className="flex-1 p-4 space-y-1 border-t sm:border-t-0 border-slate-200">
+                    <div className="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-1.5">Pihak Pertama (Penyerah):</div>
+                    <div className="font-bold text-slate-900 text-base">{record?.picName || 'Margaretha Irfiani Maheswari'}</div>
+                    <div className="text-slate-600 text-xs">PIC: {record?.picPosition || 'Aset dan Inventory Teknologi Informasi'}</div>
+                    <div className="text-slate-600 text-xs">Dept: {record?.picDepartment || 'Perencanaan dan Inovasi Teknologi Informasi'}</div>
+                    <div className="text-slate-600 text-xs">Instansi: PT Transportasi Jakarta</div>
+                  </div>
+                  <div className="hidden sm:block w-px bg-slate-200"></div>
                   <div className="flex-1 p-4 space-y-1">
                     <div className="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-1.5">Pihak Kedua (Penerima):</div>
                     <div className="font-bold text-slate-900 text-base">{recipientName}</div>
                     <div className="text-slate-600 text-xs">NIK: {recipientNIK}</div>
                     <div className="text-slate-600 text-xs">Dept: {record?.department || '-'}</div>
-                  </div>
-                  <div className="hidden sm:block w-px bg-slate-200"></div>
-                  <div className="flex-1 p-4 space-y-1 border-t sm:border-t-0 border-slate-200">
-                    <div className="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-1.5">Pihak Pertama (Penyerah):</div>
-                    <div className="font-bold text-slate-900 text-base">{record?.picName || 'Dimas Pratama'}</div>
-                    <div className="text-slate-600 text-xs">PIC: {record?.picPosition || 'IT Asset Management'}</div>
-                    <div className="text-slate-600 text-xs">Dept: {record?.picDepartment || 'Divisi TI'}</div>
-                    <div className="text-slate-500 text-[11px] font-mono mt-1">Instansi: PT Transportasi Jakarta</div>
                   </div>
                 </div>
 
@@ -137,13 +137,13 @@ export const EmailPreviewModal: React.FC<EmailPreviewModalProps> = ({
                             <td className="py-3 font-bold text-slate-900">
                               {it.softwareName}
                               {it.itemNotes && (
-                                <div className="text-xs text-blue-700 font-mono mt-1 font-normal">
+                                <div className="text-xs text-blue-700 mt-1 font-normal">
                                   ↳ {it.itemNotes}
                                 </div>
                               )}
                             </td>
                             <td className="py-3 text-slate-600">{it.licenseType}</td>
-                            <td className="py-3 text-slate-600 font-mono text-xs">{it.licenseKeyAccount || '-'}</td>
+                            <td className="py-3 text-slate-600 text-xs">{it.licenseKeyAccount || '-'}</td>
                             <td className="py-3 text-slate-600">
                               {it.licenseType === 'Perpetual' ? 'Seumur Hidup' : it.expiryDate}
                             </td>
@@ -164,7 +164,7 @@ export const EmailPreviewModal: React.FC<EmailPreviewModalProps> = ({
                     Konfirmasi Penerimaan Lisensi
                   </div>
                   <p className="text-xs text-slate-400 mt-2">
-                    *Tautan ini mengarah langsung ke portal BAST Digital dengan verifikasi Azure AD SSO.
+                    *Tautan ini mengarah langsung ke portal BAST Digital
                   </p>
                 </div>
               </>
@@ -216,8 +216,8 @@ export const EmailPreviewModal: React.FC<EmailPreviewModalProps> = ({
             <div className="pt-2 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
               <div className="text-sm text-slate-500 leading-relaxed">
                 Salam hangat,<br />
-                <strong className="text-slate-700">Divisi Teknologi Informasi & Komunikasi</strong><br />
-                PT Transportasi Jakarta (Transjakarta)
+                <strong className="text-slate-700">Divisi Pengembangan Sistem dan Inovasi Teknologi Informasi</strong><br />
+                PT Transportasi Jakarta
               </div>
               <div className="shrink-0">
                 <img 

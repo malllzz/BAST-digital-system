@@ -17,6 +17,7 @@ export default async function handler(req: any, res: any) {
     softwareName,
     licenseType,
     expiryDate,
+    licenseKeyAccount, // Ditambahkan untuk kebutuhan Expiry Reminder
     type,
     html,
     items, 
@@ -43,9 +44,9 @@ export default async function handler(req: any, res: any) {
   if (items && Array.isArray(items) && items.length > 0) {
     itemsHtml = items.map((it: any) => `
       <tr>
-        <td style="padding: 12px 8px 12px 0; border-bottom: 1px solid #f1f5f9; font-weight: bold; color: #1e293b;">
+        <td style="padding: 12px 8px 12px 0; border-bottom: 1px solid #f1f5f9; font-weight: bold; color: #0f172a;">
           ${it.softwareName}
-          ${it.itemNotes ? `<div style="font-size: 11px; color: #0369a1; font-family: monospace; margin-top: 4px; font-weight: normal;">↳ ${it.itemNotes}</div>` : ''}
+          ${it.itemNotes ? `<div style="font-size: 11px; color: #1d4ed8; font-family: monospace; margin-top: 4px; font-weight: normal;">↳ ${it.itemNotes}</div>` : ''}
         </td>
         <td style="padding: 12px 8px; border-bottom: 1px solid #f1f5f9; color: #475569;">${it.licenseType}</td>
         <td style="padding: 12px 8px; border-bottom: 1px solid #f1f5f9; color: #475569; font-family: monospace; font-size: 12px;">${it.licenseKeyAccount || '-'}</td>
@@ -55,7 +56,7 @@ export default async function handler(req: any, res: any) {
   } else {
     itemsHtml = `
       <tr>
-        <td style="padding: 12px 8px 12px 0; border-bottom: 1px solid #f1f5f9; font-weight: bold; color: #1e293b;">${softwareName}</td>
+        <td style="padding: 12px 8px 12px 0; border-bottom: 1px solid #f1f5f9; font-weight: bold; color: #0f172a;">${softwareName}</td>
         <td style="padding: 12px 8px; border-bottom: 1px solid #f1f5f9; color: #475569;">${licenseType}</td>
         <td style="padding: 12px 8px; border-bottom: 1px solid #f1f5f9; color: #475569; font-family: monospace;">-</td>
         <td style="padding: 12px 0 12px 8px; border-bottom: 1px solid #f1f5f9; color: #475569;">${expiryDate}</td>
@@ -71,20 +72,24 @@ export default async function handler(req: any, res: any) {
   if (type === 'expiry_reminder') {
     emailHtml = html || `
       <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #334155; max-width: 650px; margin: 0 auto; background-color: #ffffff; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background-image: url('${watermarkSvg}'); background-repeat: no-repeat; background-position: center; background-size: 80%; background-blend-mode: lighten; box-shadow: inset 0 0 0 1000px rgba(255,255,255,0.96);">
-         
-         <div style="background-color: #fef3c7; border: 1px solid #fde68a; padding: 16px; border-radius: 8px; margin-bottom: 24px;">
-            <div style="color: #b45309; font-weight: bold; font-size: 14px;">⚠ Pengingat Otomatis Sistem (H-30 Hari)</div>
-            <div style="color: #b45309; font-size: 13px; margin-top: 4px;">Lisensi software Anda akan kedaluwarsa dalam 30 hari ke depan.</div>
+          
+         <div style="background-color: #fef3c7; border: 1px solid #fde68a; padding: 16px; border-radius: 8px; margin-bottom: 24px; display: flex; align-items: flex-start; gap: 12px;">
+            <div style="color: #d97706; font-size: 24px;">⚠</div>
+            <div>
+              <div style="color: #78350f; font-weight: bold; font-size: 14px;">Pengingat Otomatis Sistem (H-30 Hari)</div>
+              <div style="color: #92400e; font-size: 12px; margin-top: 4px;">Lisensi software Anda akan kedaluwarsa dalam 30 hari ke depan.</div>
+            </div>
          </div>
          
          <p style="font-size: 14px; margin-bottom: 16px;">Halo <strong>${employeeName}</strong> (NIK: ${employeeNik}),</p>
          <p style="font-size: 14px; margin-bottom: 20px; line-height: 1.6;">Sistem mendeteksi bahwa lisensi software berikut yang terdaftar atas nama Anda akan segera berakhir:</p>
          
-         <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
+         <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
            <table style="width: 100%; font-size: 14px; text-align: left; border-collapse: collapse;">
              <tr><td style="color: #64748b; padding-bottom: 10px; width: 140px;">Nama Software:</td><td style="font-weight: bold; color: #0f172a; padding-bottom: 10px;">${softwareName}</td></tr>
-             <tr><td style="color: #64748b; padding-bottom: 10px;">Tipe Lisensi:</td><td style="font-weight: bold; color: #1e293b; padding-bottom: 10px;">${licenseType}</td></tr>
+             <tr><td style="color: #64748b; padding-bottom: 10px;">Tipe Lisensi:</td><td style="font-weight: 500; color: #1e293b; padding-bottom: 10px;">${licenseType}</td></tr>
              <tr><td style="color: #64748b; padding-bottom: 10px;">Tanggal Berakhir:</td><td style="font-weight: bold; color: #e11d48; padding-bottom: 10px; font-family: monospace;">${expiryDate}</td></tr>
+             <tr><td style="color: #64748b; padding-bottom: 0;">Detail Akun / Key:</td><td style="color: #334155; padding-bottom: 0; font-family: monospace;">${licenseKeyAccount || (items && items[0] ? items[0].licenseKeyAccount : '-')}</td></tr>
            </table>
          </div>
 
@@ -98,8 +103,8 @@ export default async function handler(req: any, res: any) {
            <tr>
              <td style="vertical-align: bottom;">
                <p style="margin: 0;">Salam hangat,</p>
-               <p style="margin: 4px 0 0 0; font-weight: bold; color: #334155;">Divisi Teknologi Informasi & Komunikasi</p>
-               <p style="margin: 2px 0 0 0;">PT Transportasi Jakarta (Transjakarta)</p>
+               <p style="margin: 4px 0 0 0; font-weight: bold; color: #334155;">Divisi Pengembangan Sistem dan Inovasi Teknologi Informasi</p>
+               <p style="margin: 2px 0 0 0;">PT Transportasi Jakarta</p>
              </td>
              <td style="text-align: right; vertical-align: bottom;">
                <img src="${logoPng}" alt="Transjakarta" style="height: 32px; display: block; margin-left: auto;" />
@@ -127,20 +132,22 @@ export default async function handler(req: any, res: any) {
           Tim IT Asset Management telah menyelesaikan pemenuhan lisensi software yang Anda butuhkan dengan nomor dokumen <strong>${bastNumber}</strong>${additionalInfo}.
         </p>
         
-        <table style="width: 100%; border: 1px solid #e2e8f0; border-radius: 10px; background-color: #f8fafc; margin-bottom: 24px; font-size: 13px; border-collapse: collapse;">
+        <table style="width: 100%; border: 1px solid #e2e8f0; border-radius: 10px; background-color: rgba(248, 250, 252, 0.5); margin-bottom: 24px; font-size: 13px; border-collapse: collapse;">
           <tr>
+            <!-- PIHAK PERTAMA DI KIRI (Sesuai Preview) -->
+            <td style="padding: 16px; width: 50%; vertical-align: top; border-right: 1px solid #e2e8f0;">
+              <div style="color: #64748b; margin-bottom: 6px; font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">Pihak Pertama (Penyerah):</div>
+              <div style="font-weight: bold; color: #0f172a; font-size: 15px; margin-bottom: 4px;">${picName || 'Margaretha Irfiani Maheswari'}</div>
+              <div style="color: #475569; font-size: 12px; margin-bottom: 2px;">PIC: ${picPosition || 'Aset dan Inventory Teknologi Informasi'}</div>
+              <div style="color: #475569; font-size: 12px; margin-bottom: 2px;">Dept: ${picDepartment || 'Perencanaan dan Inovasi Teknologi Informasi'}</div>
+              <div style="color: #475569; font-size: 12px;">Instansi: PT Transportasi Jakarta</div>
+            </td>
+            <!-- PIHAK KEDUA DI KANAN -->
             <td style="padding: 16px; width: 50%; vertical-align: top;">
-              <div style="color: #64748b; margin-bottom: 6px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Pihak Kedua (Penerima):</div>
+              <div style="color: #64748b; margin-bottom: 6px; font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">Pihak Kedua (Penerima):</div>
               <div style="font-weight: bold; color: #0f172a; font-size: 15px; margin-bottom: 4px;">${employeeName}</div>
               <div style="color: #475569; font-size: 12px; margin-bottom: 2px;">NIK: ${employeeNik}</div>
               <div style="color: #475569; font-size: 12px; margin-bottom: 2px;">Dept: ${department || '-'}</div>
-            </td>
-            <td style="padding: 16px; width: 50%; vertical-align: top; border-left: 1px solid #e2e8f0;">
-              <div style="color: #64748b; margin-bottom: 6px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Pihak Pertama (Penyerah):</div>
-              <div style="font-weight: bold; color: #0f172a; font-size: 15px; margin-bottom: 4px;">${picName || 'Dimas Pratama'}</div>
-              <div style="color: #475569; font-size: 12px; margin-bottom: 2px;">PIC: ${picPosition || 'IT Asset Management'}</div>
-              <div style="color: #475569; font-size: 12px; margin-bottom: 2px;">Dept: ${picDepartment || 'Divisi TI'}</div>
-              <div style="color: #64748b; font-family: monospace; font-size: 11px;">Instansi: PT Transportasi Jakarta</div>
             </td>
           </tr>
         </table>
@@ -150,10 +157,10 @@ export default async function handler(req: any, res: any) {
           <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
             <thead>
               <tr>
-                <th style="padding-bottom: 12px; border-bottom: 2px solid #e2e8f0; color: #475569; font-weight: 600;">Nama Software</th>
-                <th style="padding-bottom: 12px; border-bottom: 2px solid #e2e8f0; color: #475569; font-weight: 600;">Tipe Lisensi</th>
-                <th style="padding-bottom: 12px; border-bottom: 2px solid #e2e8f0; color: #475569; font-weight: 600;">Akun / Seat</th>
-                <th style="padding-bottom: 12px; border-bottom: 2px solid #e2e8f0; color: #475569; font-weight: 600;">Masa Berlaku</th>
+                <th style="padding-bottom: 12px; border-bottom: 2px solid #f1f5f9; color: #475569; font-weight: 600;">Nama Software</th>
+                <th style="padding-bottom: 12px; border-bottom: 2px solid #f1f5f9; color: #475569; font-weight: 600;">Tipe Lisensi</th>
+                <th style="padding-bottom: 12px; border-bottom: 2px solid #f1f5f9; color: #475569; font-weight: 600;">Akun / Seat</th>
+                <th style="padding-bottom: 12px; border-bottom: 2px solid #f1f5f9; color: #475569; font-weight: 600;">Masa Berlaku</th>
               </tr>
             </thead>
             <tbody>
@@ -169,7 +176,7 @@ export default async function handler(req: any, res: any) {
         <div style="text-align: center; margin: 32px 0; border-bottom: 1px solid #e2e8f0; padding-bottom: 32px;">
           <a href="${confirmationLink}" style="background-color: #0078d4; color: white; padding: 12px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block; font-size: 14px; box-shadow: 0 2px 4px rgba(0,120,212,0.2);">Konfirmasi Penerimaan Lisensi</a>
           <p style="font-size: 11px; color: #94a3b8; margin-top: 12px; margin-bottom: 0;">
-            *Tautan ini mengarah langsung ke portal BAST Digital dengan verifikasi Azure AD SSO.
+            *Tautan ini mengarah langsung ke portal BAST Digital
           </p>
         </div>
 
@@ -177,8 +184,8 @@ export default async function handler(req: any, res: any) {
            <tr>
              <td style="vertical-align: bottom;">
                <p style="margin: 0;">Salam hangat,</p>
-               <p style="margin: 4px 0 0 0; font-weight: bold; color: #334155;">Divisi Teknologi Informasi & Komunikasi</p>
-               <p style="margin: 2px 0 0 0;">PT Transportasi Jakarta (Transjakarta)</p>
+               <p style="margin: 4px 0 0 0; font-weight: bold; color: #334155;">Divisi Pengembangan Sistem dan Inovasi Teknologi Informasi</p>
+               <p style="margin: 2px 0 0 0;">PT Transportasi Jakarta</p>
              </td>
              <td style="text-align: right; vertical-align: bottom;">
                <img src="${logoPng}" alt="Transjakarta" style="height: 32px; display: block; margin-left: auto;" />

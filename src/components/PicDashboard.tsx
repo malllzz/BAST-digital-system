@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef } from 'react';
-import { Search, Filter, FileText, CheckCircle2, Clock, AlertTriangle, Eye, Mail, Download, Edit, Trash2, Plus, ArrowUpDown, Upload, FileSpreadsheet } from 'lucide-react';
-import { BastRecord, BastStatus, LicenseType } from '../types';
+import { Search, Filter, FileText, CheckCircle2, Clock, AlertTriangle, Eye, Mail, Download, Edit, Trash2, Plus, ArrowUpDown, Upload, FileSpreadsheet, CheckCircle } from 'lucide-react';
+import { BastRecord } from '../types';
 import { calculateDaysRemaining } from '../data/initialData';
 import * as XLSX from 'xlsx';
 
@@ -13,7 +13,7 @@ interface PicDashboardProps {
   onDeleteBast?: (id: string) => void;
   onForceCompleteBast?: (id: string) => void;
   onEditBast?: (record: BastRecord) => void;
-  onImportBast?: (data: any[]) => void; // Props baru untuk menerima data hasil import
+  onImportBast?: (data: any[]) => void;
 }
 
 export const PicDashboard: React.FC<PicDashboardProps> = ({
@@ -36,9 +36,7 @@ export const PicDashboard: React.FC<PicDashboardProps> = ({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Metrics calculation
   const totalBast = records.length;
-  // Mengakomodasi status lama 'Menunggu Konfirmasi' sebagai 'Pending User'
   const pendingUserCount = records.filter((r) => r.status === 'Pending User' || r.status === 'Menunggu Konfirmasi').length;
   const pendingPicCount = records.filter((r) => r.status === 'Pending PIC').length;
   const completedCount = records.filter((r) => r.status === 'Selesai').length;
@@ -58,7 +56,6 @@ export const PicDashboard: React.FC<PicDashboardProps> = ({
     return count;
   }, [records]);
 
-  // Ekstrak daftar tahun unik dari data
   const availableYears = useMemo(() => {
     const years = new Set<string>();
     records.forEach(rec => {
@@ -68,10 +65,8 @@ export const PicDashboard: React.FC<PicDashboardProps> = ({
     return Array.from(years).sort((a, b) => (a > b ? -1 : 1));
   }, [records]);
 
-  // Menerapkan Filter dan Sorting
   const filteredAndSortedRecords = useMemo(() => {
     let result = records.filter((record) => {
-      // Pencarian Teks
       const query = searchTerm.toLowerCase();
       const matchSearch =
         record.bastNumber.toLowerCase().includes(query) ||
@@ -84,7 +79,6 @@ export const PicDashboard: React.FC<PicDashboardProps> = ({
 
       if (!matchSearch) return false;
 
-      // Filter Status (Disesuaikan untuk flow baru)
       if (statusFilter !== 'all') {
         if (statusFilter === 'Pending User') {
           if (record.status !== 'Pending User' && record.status !== 'Menunggu Konfirmasi') return false;
@@ -93,17 +87,14 @@ export const PicDashboard: React.FC<PicDashboardProps> = ({
         }
       }
 
-      // Filter Tipe Lisensi
       if (typeFilter !== 'all') {
         const hasType = record.items.some((it) => it.licenseType === typeFilter);
         if (!hasType) return false;
       }
 
-      // Filter PO
       if (poFilter === 'has_po' && (!record.poNumber || record.poNumber.trim() === '')) return false;
       if (poFilter === 'no_po' && (record.poNumber && record.poNumber.trim() !== '')) return false;
 
-      // Filter Tahun
       if (yearFilter !== 'all') {
         const recordYear = new Date(record.createdAt).getFullYear().toString();
         if (recordYear !== yearFilter) return false;
@@ -112,7 +103,6 @@ export const PicDashboard: React.FC<PicDashboardProps> = ({
       return true;
     });
 
-    // Sorting
     result = result.sort((a, b) => {
       if (sortOption === 'date_desc') return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       if (sortOption === 'date_asc') return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
@@ -124,7 +114,6 @@ export const PicDashboard: React.FC<PicDashboardProps> = ({
     return result;
   }, [records, searchTerm, statusFilter, typeFilter, poFilter, yearFilter, sortOption]);
 
-  // Handler Export
   const handleExportExcel = () => {
     if (filteredAndSortedRecords.length === 0) {
       alert("Tidak ada data untuk diekspor.");
@@ -145,13 +134,15 @@ export const PicDashboard: React.FC<PicDashboardProps> = ({
         "Email": rec.recipientEmail,
         "Departemen": rec.department,
         "Tanggal Terbit": new Date(rec.createdAt).toLocaleDateString('id-ID'),
+        "Tgl Konfirmasi User": rec.userConfirmationDate ? new Date(rec.userConfirmationDate).toLocaleString('id-ID') : (rec.confirmationDate ? new Date(rec.confirmationDate).toLocaleString('id-ID') : "-"),
+        "Tgl Pengesahan PIC": rec.picConfirmationDate ? new Date(rec.picConfirmationDate).toLocaleString('id-ID') : "-",
         "Status": rec.status,
         "Daftar Software (Nama - Tipe - Expired)": softwareList
       };
     });
 
     const worksheet = XLSX.utils.json_to_sheet(excelData);
-    const wscols = [{ wch: 22 }, { wch: 20 }, { wch: 20 }, { wch: 25 }, { wch: 15 }, { wch: 30 }, { wch: 25 }, { wch: 15 }, { wch: 20 }, { wch: 60 }];
+    const wscols = [{ wch: 22 }, { wch: 20 }, { wch: 20 }, { wch: 25 }, { wch: 15 }, { wch: 30 }, { wch: 25 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 60 }];
     worksheet['!cols'] = wscols;
 
     const workbook = XLSX.utils.book_new();
@@ -159,7 +150,6 @@ export const PicDashboard: React.FC<PicDashboardProps> = ({
     XLSX.writeFile(workbook, `Data_BAST_IT_Asset_${new Date().getTime()}.xlsx`);
   };
 
-  // Handler Template Download
   const handleDownloadTemplate = () => {
     const templateData = [{
       "Nomor BAST": "BAST-IT/2026/10/01",
@@ -180,7 +170,6 @@ export const PicDashboard: React.FC<PicDashboardProps> = ({
     XLSX.writeFile(wb, "Template_Import_BAST.xlsx");
   };
 
-  // Handler File Upload (Excel Import)
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -195,8 +184,6 @@ export const PicDashboard: React.FC<PicDashboardProps> = ({
         const data = XLSX.utils.sheet_to_json(ws);
         
         if (onImportBast) onImportBast(data);
-        
-        // Reset input agar bisa upload file yang sama lagi jika diperlukan
         if (fileInputRef.current) fileInputRef.current.value = '';
       } catch (error) {
         alert("Gagal membaca file Excel. Pastikan formatnya sesuai.");
@@ -210,7 +197,6 @@ export const PicDashboard: React.FC<PicDashboardProps> = ({
       {/* Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
-        {/* Total BAST */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
             <p className="text-xs font-medium text-slate-500">Total BAST Diterbitkan</p>
@@ -222,7 +208,6 @@ export const PicDashboard: React.FC<PicDashboardProps> = ({
           </div>
         </div>
 
-        {/* Menunggu Konfirmasi (Pecahan User & PIC) */}
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
           <div className="flex items-start justify-between mb-2">
             <div>
@@ -250,7 +235,6 @@ export const PicDashboard: React.FC<PicDashboardProps> = ({
           </div>
         </div>
 
-        {/* BAST Selesai */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
             <p className="text-xs font-medium text-slate-500">BAST Selesai (Tervalidasi)</p>
@@ -262,7 +246,6 @@ export const PicDashboard: React.FC<PicDashboardProps> = ({
           </div>
         </div>
 
-        {/* Lisensi Expired */}
         <div
           onClick={onGoToMonitoring}
           className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between cursor-pointer hover:border-amber-300 transition-colors group"
@@ -280,12 +263,9 @@ export const PicDashboard: React.FC<PicDashboardProps> = ({
         </div>
       </div>
 
-      {/* Control & Filter Bar (2 Baris) */}
+      {/* Control & Filter Bar */}
       <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col gap-4">
-        
-        {/* BARIS 1: Pencarian, Filter & Sorting */}
         <div className="flex flex-col xl:flex-row items-center justify-between gap-3">
-          {/* Kolom Pencarian */}
           <div className="relative w-full xl:max-w-xs shrink-0">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
@@ -297,7 +277,6 @@ export const PicDashboard: React.FC<PicDashboardProps> = ({
             />
           </div>
 
-          {/* Kolom Filter & Sort */}
           <div className="flex flex-wrap items-center gap-2 w-full xl:w-auto xl:justify-end">
             <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2 py-1.5">
               <Filter className="w-3.5 h-3.5 text-slate-500" />
@@ -361,9 +340,7 @@ export const PicDashboard: React.FC<PicDashboardProps> = ({
           </div>
         </div>
 
-        {/* BARIS 2: Tombol Aksi */}
         <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-3">
-          
           <button
             type="button"
             onClick={handleDownloadTemplate}
@@ -419,7 +396,7 @@ export const PicDashboard: React.FC<PicDashboardProps> = ({
                 <th className="p-3.5">Penerima & Info</th>
                 <th className="p-3.5">Daftar Software (Multi-Item)</th>
                 <th className="p-3.5">Tanggal</th>
-                <th className="p-3.5 text-center">Status</th>
+                <th className="p-3.5 text-center">Status BAST</th>
                 <th className="p-3.5 text-right">Aksi</th>
               </tr>
             </thead>
@@ -474,31 +451,47 @@ export const PicDashboard: React.FC<PicDashboardProps> = ({
                     </td>
 
                     <td className="p-3.5 align-top text-center">
-                      {rec.status === 'Selesai' ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800">
-                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                          Selesai
-                        </span>
-                      ) : (
-                        <div className="flex flex-col items-center gap-1.5">
-                          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold ${
-                            rec.status === 'Pending PIC' ? 'bg-sky-100 text-sky-800' : 'bg-amber-100 text-amber-800'
-                          }`}>
-                            <Clock className={`w-3 h-3 animate-pulse ${rec.status === 'Pending PIC' ? 'text-sky-600' : 'text-amber-600'}`} />
-                            {rec.status === 'Menunggu Konfirmasi' ? 'Pending User' : rec.status}
+                      <div className="flex flex-col items-center gap-1.5">
+                        {rec.status === 'Selesai' ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                            Selesai & Sah
                           </span>
-                          <button
-                            onClick={() => {
-                              if (window.confirm(`Validasi dokumen ini secara paksa sebagai Admin?`)) {
-                                if(onForceCompleteBast) onForceCompleteBast(rec.id);
-                              }
-                            }}
-                            className="text-[9px] text-blue-600 hover:text-blue-800 underline font-medium cursor-pointer"
-                          >
-                            Validasi Manual
-                          </button>
-                        </div>
-                      )}
+                        ) : rec.status === 'Pending PIC' ? (
+                          <>
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-sky-100 text-sky-800">
+                              <Clock className="w-3 h-3 text-sky-600 animate-pulse" />
+                              Pending PIC
+                            </span>
+                            <button
+                              onClick={() => {
+                                if (onForceCompleteBast) onForceCompleteBast(rec.id);
+                              }}
+                              className="inline-flex items-center justify-center gap-1 mt-1 px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-semibold rounded-lg shadow-sm transition-colors cursor-pointer"
+                            >
+                              <CheckCircle className="w-3 h-3" />
+                              <span>Validasi Akhir</span>
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800">
+                              <Clock className="w-3 h-3 text-amber-600 animate-pulse" />
+                              Pending User
+                            </span>
+                            <button
+                              onClick={() => {
+                                if (window.confirm(`User belum konfirmasi. Apakah Anda ingin bypass dan validasi dokumen ini secara paksa sebagai Admin?`)) {
+                                  if(onForceCompleteBast) onForceCompleteBast(rec.id);
+                                }
+                              }}
+                              className="text-[9px] text-amber-600 hover:text-amber-800 underline font-medium cursor-pointer"
+                            >
+                              Force Bypass
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </td>
 
                     <td className="p-3.5 align-top text-right">

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShieldCheck, CheckCircle2, Clock, Eye, AlertCircle, FileText, Lock, Sparkles, Laptop, Calendar } from 'lucide-react';
+import { ShieldCheck, CheckCircle2, Clock, Eye, FileText, Lock } from 'lucide-react';
 import { BastRecord, SimulatedUser } from '../types';
 
 interface UserPortalProps {
@@ -15,13 +15,11 @@ export const UserPortal: React.FC<UserPortalProps> = ({
   onConfirmReceipt,
   onViewDetail,
 }) => {
-  // CRITICAL REQUIREMENT: "user hanya bisa lihat histori dokumen sendiri" (Item-Level Security)
   const myRecords = records.filter(
     (r) => r.recipientEmail.toLowerCase() === currentUser.email.toLowerCase()
   );
 
-  const pendingBast = myRecords.find((r) => r.status === 'Menunggu Konfirmasi');
-  const completedRecords = myRecords.filter((r) => r.status === 'Selesai');
+  const pendingBast = myRecords.find((r) => r.status === 'Menunggu Konfirmasi' || r.status === 'Pending User');
 
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
@@ -35,7 +33,6 @@ export const UserPortal: React.FC<UserPortalProps> = ({
 
   return (
     <div id="user-portal-view" className="space-y-6">
-      {/* Security & User Info Banner */}
       <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-xl border border-emerald-100">
@@ -62,7 +59,6 @@ export const UserPortal: React.FC<UserPortalProps> = ({
         </div>
       </div>
 
-      {/* Pending BAST Action Card (If any) */}
       {pendingBast ? (
         <div
           id="pending-bast-card"
@@ -85,7 +81,6 @@ export const UserPortal: React.FC<UserPortalProps> = ({
             di bawah ini telah aktif sebelum melakukan konfirmasi serah terima digital.
           </div>
 
-          {/* Software Table in Pending Card */}
           <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
             <table className="w-full text-left text-xs">
               <thead>
@@ -115,7 +110,6 @@ export const UserPortal: React.FC<UserPortalProps> = ({
             </table>
           </div>
 
-          {/* Legal statement & CTA */}
           <div className="bg-white/80 border border-slate-200 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="text-xs text-slate-600 space-y-1">
               <div className="font-semibold text-slate-800 flex items-center gap-1.5">
@@ -159,7 +153,6 @@ export const UserPortal: React.FC<UserPortalProps> = ({
         </div>
       ) : null}
 
-      {/* Histori BAST Saya */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
         <div className="p-5 border-b border-slate-100 flex items-center justify-between">
           <div>
@@ -212,7 +205,12 @@ export const UserPortal: React.FC<UserPortalProps> = ({
                     </td>
 
                     <td className="p-3.5 text-slate-600 whitespace-nowrap">
-                      {rec.confirmationDate
+                      {rec.userConfirmationDate
+                        ? new Date(rec.userConfirmationDate).toLocaleString('id-ID', {
+                            dateStyle: 'medium',
+                            timeStyle: 'short',
+                          })
+                        : rec.confirmationDate 
                         ? new Date(rec.confirmationDate).toLocaleString('id-ID', {
                             dateStyle: 'medium',
                             timeStyle: 'short',
@@ -225,16 +223,26 @@ export const UserPortal: React.FC<UserPortalProps> = ({
                         <div className="space-y-0.5">
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800">
                             <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                            Terkonfirmasi User
+                            Selesai & Sah
                           </span>
                           <div className="text-[10px] text-slate-400 font-mono">
                             {rec.auditAuthUser || rec.recipientEmail}
                           </div>
                         </div>
+                      ) : rec.status === 'Pending PIC' ? (
+                         <div className="space-y-0.5">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-sky-100 text-sky-800 border border-sky-200">
+                            <Clock className="w-3 h-3 text-sky-600" />
+                            Menunggu Pengesahan IT
+                          </span>
+                          <div className="text-[10px] text-slate-400 font-mono">
+                            Konfirmasi Anda Terekam
+                          </div>
+                        </div>
                       ) : (
                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800">
                           <Clock className="w-3 h-3 text-amber-600" />
-                          Menunggu Konfirmasi
+                          Menunggu Konfirmasi Anda
                         </span>
                       )}
                     </td>

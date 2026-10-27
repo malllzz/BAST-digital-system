@@ -23,18 +23,14 @@ export default function App() {
   const [records, setRecords] = useState<BastRecord[]>([]);
   const [employeeList, setEmployeeList] = useState<SimulatedUser[]>(SIMULATED_USERS);
 
-  // STATE LOADING UTAMA
   const [loadingData, setLoadingData] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // ==========================================
-  // STATE AUTENTIKASI (DENGAN LOCAL STORAGE)
-  // ==========================================
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     return localStorage.getItem('bast_auth_user') !== null;
   });
 
-  const [isStandaloneMode, setIsStandaloneMode] = useState(false); // <-- INI YANG SEMPAT HILANG
+  const [isStandaloneMode, setIsStandaloneMode] = useState(false);
 
   const [currentUser, setCurrentUser] = useState<SimulatedUser>(() => {
     const savedUser = localStorage.getItem('bast_auth_user');
@@ -67,7 +63,6 @@ export default function App() {
     setTimeout(() => setToastMessage(null), 4000);
   };
 
-  // 1. Fetch Data Terpusat
   const fetchRecords = async () => {
     setLoadingData(true);
     try {
@@ -95,7 +90,6 @@ export default function App() {
     fetchRecords();
   }, []);
 
-  // LOGIKA Standalone Mode (Tautan Email)
   useEffect(() => {
     if (records.length > 0) {
       const params = new URLSearchParams(window.location.search);
@@ -120,7 +114,6 @@ export default function App() {
     }
   }, [records]);
 
-  // FUNGSI LOGIN DENGAN PENYIMPANAN SESI
   const handleLogin = async (email: string, pass: string) => {
     await new Promise(resolve => setTimeout(resolve, 800));
 
@@ -130,10 +123,7 @@ export default function App() {
       setCurrentUser(user);
       setCurrentRole(user.role as UserRole);
       setIsAuthenticated(true);
-
-      // Simpan data login ke browser agar awet saat di-refresh
       localStorage.setItem('bast_auth_user', JSON.stringify(user));
-
       showToast('Login Berhasil', `Selamat datang, ${user.name}`);
       return;
     }
@@ -143,7 +133,6 @@ export default function App() {
 
   const nextBastNumber = generateNextBastNumber(records);
 
-  // --- AKSI 1: CREATE & UPDATE BAST ---
   const handleSaveNewBast = async (newBast: BastRecord, isEdit: boolean = false) => {
     setIsProcessing(true);
     try {
@@ -212,19 +201,43 @@ export default function App() {
     }
   };
 
-  // --- AKSI 2: UPDATE (Konfirmasi BAST) ---
   const handleConfirmReceipt = async (recordId: string) => {
     setIsProcessing(true);
     try {
       const now = new Date();
       const timestampStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')} UTC+7`;
 
-      const updates = {
-        status: 'Selesai',
-        confirmationDate: now.toISOString(),
-        auditAuthUser: `${currentUser.email} via SSO`,
-        auditTimestamp: timestampStr,
-      };
+      const record = records.find(r => r.id === recordId);
+      if (!record) throw new Error("Dokumen BAST tidak ditemukan.");
+
+      let updates: Partial<BastRecord> = {};
+
+      if (record.status === 'Menunggu Konfirmasi' || record.status === 'Pending User') {
+        if (currentRole === 'admin' || currentRole === 'pic') {
+          // Bypass oleh admin/PIC
+          updates = {
+            status: 'Selesai',
+            userConfirmationDate: now.toISOString(),
+            picConfirmationDate: now.toISOString(),
+            auditAuthUser: `Bypass Admin: ${currentUser.email}`,
+            auditTimestamp: timestampStr,
+          };
+        } else {
+          // Normal flow: User melakukan konfirmasi
+          updates = {
+            status: 'Pending PIC',
+            userConfirmationDate: now.toISOString(),
+            auditAuthUser: `${currentUser.email} via SSO`,
+            auditTimestamp: timestampStr,
+          };
+        }
+      } else if (record.status === 'Pending PIC') {
+        // Tahap 2: Pengesahan akhir oleh PIC
+        updates = {
+          status: 'Selesai',
+          picConfirmationDate: now.toISOString(),
+        };
+      }
 
       const { error } = await supabase.from('bast_records').update(updates).eq('id', recordId);
       if (error) throw error;
@@ -233,7 +246,7 @@ export default function App() {
       if (detailRecord && detailRecord.id === recordId) {
         setDetailRecord({ ...detailRecord, ...updates } as BastRecord);
       }
-      showToast('Konfirmasi Berhasil!', `Penerimaan divalidasi oleh ${currentUser.email}.`);
+      showToast('Konfirmasi Berhasil!', `Dokumen berhasil diproses.`);
     } catch (error: any) {
       console.error("Gagal update konfirmasi:", error);
       alert("Gagal melakukan konfirmasi: " + error.message);
@@ -242,7 +255,6 @@ export default function App() {
     }
   };
 
-  // --- AKSI 3: REMINDER EMAIL ---
   const handleTriggerReminder = async (bastId: string, itemId: string) => {
     setIsProcessing(true);
     try {
@@ -259,7 +271,7 @@ export default function App() {
           body: JSON.stringify({
             to: targetBast.recipientEmail,
             subject: `[PENGINGAT H-30] Masa Berlaku Lisensi ${targetItem.softwareName} Akan Segera Berakhir`,
-            type: 'expiry_reminder', // <-- Penanda penting untuk Backend
+            type: 'expiry_reminder',
             employeeName: targetBast.recipientName,
             employeeNik: targetBast.recipientNIK,
             department: targetBast.department,
@@ -283,15 +295,12 @@ export default function App() {
     }
   };
 
-  // --- AKSI 4: DELETE BAST ---
   const handleDeleteBast = async (recordId: string) => {
     setIsProcessing(true);
     try {
       await supabase.from('license_items').delete().eq('bast_id', recordId);
       const { error } = await supabase.from('bast_records').delete().eq('id', recordId);
-
       if (error) throw error;
-
       showToast('Data Dihapus', 'Dokumen BAST berhasil dihapus permanen dari database.');
       await fetchRecords();
     } catch (err: any) {
@@ -302,20 +311,16 @@ export default function App() {
     }
   };
 
-  // --- AKSI 5: TOGGLE AUTOMASI INDIVIDUAL ---
   const handleToggleAutoReminder = async (bastId: string, itemId: string, isEnabled: boolean) => {
     setIsProcessing(true);
     try {
-      // Update langsung ke tabel license_items di Supabase
       const { error } = await supabase
         .from('license_items')
         .update({ isAutoReminderEnabled: isEnabled })
         .eq('id', itemId);
-
       if (error) throw error;
-
       showToast('Automasi Diperbarui', `Automasi email untuk lisensi ini telah ${isEnabled ? 'diaktifkan' : 'dimatikan'}.`);
-      await fetchRecords(); // Refresh data untuk mendapatkan state terbaru dari DB
+      await fetchRecords();
     } catch (err: any) {
       console.error("Gagal mengubah automasi:", err);
       alert("Gagal mengubah automasi: " + err.message);
@@ -324,23 +329,17 @@ export default function App() {
     }
   };
 
-  // --- AKSI 6: TOGGLE AUTOMASI GLOBAL (Semua yang difilter) ---
   const handleToggleAllAutoReminder = async (updates: {bastId: string, itemId: string, isEnabled: boolean}[]) => {
     if (updates.length === 0) return;
     setIsProcessing(true);
     try {
-      // Ekstrak ID apa saja yang akan diubah
       const itemIds = updates.map(u => u.itemId);
-      const targetState = updates[0].isEnabled; // Ambil value true/false yang seragam
-
-      // Update banyak baris sekaligus menggunakan .in()
+      const targetState = updates[0].isEnabled;
       const { error } = await supabase
         .from('license_items')
         .update({ isAutoReminderEnabled: targetState })
         .in('id', itemIds);
-
       if (error) throw error;
-
       showToast('Automasi Global Diperbarui', `${updates.length} lisensi berhasil diubah ke status ${targetState ? 'Aktif' : 'Nonaktif'}.`);
       await fetchRecords();
     } catch (err: any) {
@@ -351,7 +350,6 @@ export default function App() {
     }
   };
 
-  // --- FUNGSI ADMIN: CRUD Karyawan ---
   const handleAddUser = async (user: SimulatedUser) => {
     setIsProcessing(true);
     try {
@@ -409,12 +407,8 @@ export default function App() {
   };
 
   const userPendingCount = records.filter(
-    (r) => r.recipientEmail.toLowerCase() === currentUser.email.toLowerCase() && r.status === 'Menunggu Konfirmasi'
+    (r) => r.recipientEmail.toLowerCase() === currentUser.email.toLowerCase() && (r.status === 'Menunggu Konfirmasi' || r.status === 'Pending User')
   ).length;
-
-  // ==========================================
-  // RENDER LOGIC
-  // ==========================================
 
   const GlobalProcessingOverlay = () => (
     <div className="fixed inset-0 z-100 bg-slate-900/30 backdrop-blur-[2px] flex items-center justify-center">
@@ -430,7 +424,6 @@ export default function App() {
 
   if (loadingData) return <div className="p-10 flex flex-col items-center justify-center gap-3 text-slate-500 font-medium h-screen bg-slate-50"><Loader2 className="w-8 h-8 animate-spin text-blue-500" /> <span>Menyinkronkan Database...</span></div>;
 
-  // 1. Standalone Mode (Link Konfirmasi dari Email)
   if (isStandaloneMode && detailRecord) {
     return (
       <div id="bast-app-root" className="min-h-screen bg-slate-800 flex items-center justify-center p-4">
@@ -447,18 +440,16 @@ export default function App() {
           record={detailRecord}
           onConfirmReceipt={handleConfirmReceipt}
           isUserView={true}
-          canConfirm={detailRecord.status === 'Menunggu Konfirmasi'}
+          canConfirm={detailRecord.status === 'Menunggu Konfirmasi' || detailRecord.status === 'Pending User'}
         />
       </div>
     );
   }
 
-  // 2. Tampilkan Halaman Login jika belum terautentikasi
   if (!isAuthenticated) {
     return <LoginScreen onLogin={handleLogin} />;
   }
 
-  // 3. Tampilkan Aplikasi Utama setelah Login
   return (
     <div id="bast-app-root" className="min-h-screen bg-slate-100 text-slate-800 flex flex-col font-sans">
       {isProcessing && <GlobalProcessingOverlay />}
@@ -470,7 +461,6 @@ export default function App() {
         </div>
       )}
 
-      {/* Navbar */}
       <Navbar
         currentRole={currentRole}
         currentUser={currentUser}
@@ -485,7 +475,6 @@ export default function App() {
         onLogout={() => {
           setIsAuthenticated(false);
           setActiveTab('dashboard');
-          // Hapus sesi login dari browser saat Logout
           localStorage.removeItem('bast_auth_user');
         }}
       />
@@ -514,8 +503,8 @@ export default function App() {
               records={records}
               onTriggerReminder={handleTriggerReminder}
               onPreviewEmail={(rec, item) => setEmailModal({ isOpen: true, type: 'expiry_reminder', record: rec, item })}
-              onToggleAutoReminder={handleToggleAutoReminder} // <-- TAMBAHKAN INI
-              onToggleAllAutoReminder={handleToggleAllAutoReminder} // <-- TAMBAHKAN INI
+              onToggleAutoReminder={handleToggleAutoReminder} 
+              onToggleAllAutoReminder={handleToggleAllAutoReminder} 
             />
           ) : (
             <EmployeeManagementTab
@@ -554,7 +543,7 @@ export default function App() {
         record={detailRecord}
         onConfirmReceipt={handleConfirmReceipt}
         isUserView={currentRole === 'user'}
-        canConfirm={currentRole === 'user' && detailRecord?.recipientEmail.toLowerCase() === currentUser.email.toLowerCase() && detailRecord?.status === 'Menunggu Konfirmasi'}
+        canConfirm={currentRole === 'user' && detailRecord?.recipientEmail.toLowerCase() === currentUser.email.toLowerCase() && (detailRecord?.status === 'Menunggu Konfirmasi' || detailRecord?.status === 'Pending User')}
       />
 
       <EmailPreviewModal

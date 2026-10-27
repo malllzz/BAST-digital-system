@@ -30,9 +30,16 @@ export interface BastRecord {
   picDepartment: string;
   createdAt: string;
   status: BastStatus;
+  
+  // Kolom audit lama (opsional, bisa dipertahankan)
   confirmationDate?: string;
   auditAuthUser?: string;
   auditTimestamp?: string;
+  
+  // Kolom audit BARU untuk 2-step verification
+  userConfirmationDate?: string;
+  picConfirmationDate?: string;
+  
   notes?: string;
   items: LicenseItem[];
 }
