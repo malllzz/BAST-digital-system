@@ -7,9 +7,9 @@ export default async function handler(req: any, res: any) {
   }
 
   // Menangkap SEMUA data spesifik dari frontend
-  const { 
-    to, 
-    subject, 
+  const {
+    to,
+    subject,
     bastId,
     employeeName,
     employeeNik,
@@ -20,7 +20,7 @@ export default async function handler(req: any, res: any) {
     licenseKeyAccount, // Ditambahkan untuk kebutuhan Expiry Reminder
     type,
     html,
-    items, 
+    items,
     notaNumber,
     poNumber,
     department,
@@ -31,7 +31,7 @@ export default async function handler(req: any, res: any) {
   } = req.body;
 
   const confirmationLink = `https://bast-digital-system.vercel.app/konfirmasi?id=${bastId}`;
-  
+
   // URL Gambar Logo Resmi yang sudah dihosting
   const watermarkSvg = 'https://bast-digital-system.vercel.app/transjakarta-logo.svg';
   const logoPng = 'https://bast-digital-system.vercel.app/transjakarta-logo.png';
@@ -40,7 +40,7 @@ export default async function handler(req: any, res: any) {
   // LOGIKA PEMBUATAN BARIS TABEL DINAMIS
   // ==========================================
   let itemsHtml = '';
-  
+
   if (items && Array.isArray(items) && items.length > 0) {
     itemsHtml = items.map((it: any) => `
       <tr>
@@ -118,9 +118,9 @@ export default async function handler(req: any, res: any) {
     let additionalInfo = '';
     if (notaNumber) additionalInfo += ` (Berdasarkan Nota Dinas: ${notaNumber})`;
     if (poNumber) {
-        additionalInfo += ` (Purchase Order: <strong style="font-family: monospace; color: #4338ca;">${poNumber}</strong>)`;
+      additionalInfo += ` (Purchase Order: <strong style="font-family: monospace; color: #4338ca;">${poNumber}</strong>)`;
     } else {
-        additionalInfo += ` (Status Pengadaan: <span style="background-color: #fef3c7; border: 1px solid #fde68a; color: #b45309; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 12px;">Kartu Kredit - PO Menyusul</span>)`;
+      additionalInfo += ` (Status Pengadaan: <span style="background-color: #fef3c7; border: 1px solid #fde68a; color: #b45309; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 12px;">Kartu Kredit - PO Menyusul</span>)`;
     }
 
     emailHtml = `
@@ -209,7 +209,7 @@ export default async function handler(req: any, res: any) {
 
   try {
     const info = await transporter.sendMail({
-      from: `"IT Asset Management" <${process.env.EMAIL_USER}>`, 
+      from: `"IT Asset Management" <${process.env.EMAIL_USER}>`,
       to: to,
       subject: subject,
       html: emailHtml
