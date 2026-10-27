@@ -183,8 +183,10 @@ export default function App() {
             softwareName: firstItem ? firstItem.softwareName : 'Multiple Licenses',
             licenseType: firstItem ? firstItem.licenseType : '-',
             expiryDate: firstItem?.expiryDate ? firstItem.expiryDate : '-',
-            picName: currentUser.name, 
-            picEmail: currentUser.email
+            picName: newBast.picName,
+            picEmail: newBast.picEmail,
+            picPosition: newBast.picPosition,
+            picDepartment: newBast.picDepartment
           })
         });
         showToast('BAST Tersimpan & Email Terkirim!', `Nomor ${newBast.bastNumber} sukses dibuat.`);
@@ -329,7 +331,7 @@ export default function App() {
     }
   };
 
-  const handleToggleAllAutoReminder = async (updates: {bastId: string, itemId: string, isEnabled: boolean}[]) => {
+  const handleToggleAllAutoReminder = async (updates: { bastId: string, itemId: string, isEnabled: boolean }[]) => {
     if (updates.length === 0) return;
     setIsProcessing(true);
     try {
@@ -503,8 +505,8 @@ export default function App() {
               records={records}
               onTriggerReminder={handleTriggerReminder}
               onPreviewEmail={(rec, item) => setEmailModal({ isOpen: true, type: 'expiry_reminder', record: rec, item })}
-              onToggleAutoReminder={handleToggleAutoReminder} 
-              onToggleAllAutoReminder={handleToggleAllAutoReminder} 
+              onToggleAutoReminder={handleToggleAutoReminder}
+              onToggleAllAutoReminder={handleToggleAllAutoReminder}
             />
           ) : (
             <EmployeeManagementTab
