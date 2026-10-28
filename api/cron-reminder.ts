@@ -96,8 +96,8 @@ export default async function handler(req: any, res: any) {
                 <tr>
                   <td style="vertical-align: bottom;">
                     <p style="margin: 0;">Salam hangat,</p>
-                    <p style="margin: 4px 0 0 0; font-weight: bold; color: #334155;">Divisi Teknologi Informasi & Komunikasi</p>
-                    <p style="margin: 2px 0 0 0;">PT Transportasi Jakarta (Transjakarta)</p>
+                    <p style="margin: 4px 0 0 0; font-weight: bold; color: #334155;">Divisi Pengembangan Sistem dan Inovasi Teknologi Informasi</p>
+                    <p style="margin: 2px 0 0 0;">PT Transportasi Jakarta</p>
                   </td>
                   <td style="text-align: right; vertical-align: bottom;">
                     <img src="${logoPng}" alt="Transjakarta" style="height: 32px; display: block; margin-left: auto;" />
