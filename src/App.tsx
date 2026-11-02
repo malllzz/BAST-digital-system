@@ -213,10 +213,10 @@ export default function App() {
       if (!record) throw new Error("Dokumen BAST tidak ditemukan.");
 
       let updates: Partial<BastRecord> = {};
+      let isUserConfirming = false; // Penanda untuk trigger email ke PIC
 
       if (record.status === 'Menunggu Konfirmasi' || record.status === 'Pending User') {
         if (currentRole === 'admin' || currentRole === 'pic') {
-          // Bypass oleh admin/PIC
           updates = {
             status: 'Selesai',
             userConfirmationDate: now.toISOString(),
@@ -225,16 +225,15 @@ export default function App() {
             auditTimestamp: timestampStr,
           };
         } else {
-          // Normal flow: User melakukan konfirmasi
           updates = {
             status: 'Pending PIC',
             userConfirmationDate: now.toISOString(),
             auditAuthUser: `${currentUser.email} via SSO`,
             auditTimestamp: timestampStr,
           };
+          isUserConfirming = true; // User berhasil konfirmasi
         }
       } else if (record.status === 'Pending PIC') {
-        // Tahap 2: Pengesahan akhir oleh PIC
         updates = {
           status: 'Selesai',
           picConfirmationDate: now.toISOString(),
@@ -243,6 +242,27 @@ export default function App() {
 
       const { error } = await supabase.from('bast_records').update(updates).eq('id', recordId);
       if (error) throw error;
+
+      // TRIGGER EMAIL KE PIC JIKA USER BARU SAJA KONFIRMASI
+      if (isUserConfirming) {
+        await fetch('/api/send-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            // to: 'margaretha.maheswari@transjakarta.co.id',
+            to: 'malikazizrmdhn@gmail.com',
+            subject: `[ACTION REQUIRED] Validasi Akhir BAST Lisensi ${record.bastNumber}`,
+            type: 'pic_confirmation',
+            bastId: record.id,
+            bastNumber: record.bastNumber,
+            employeeName: record.recipientName,
+            employeeNik: record.recipientNIK,
+            department: record.department,
+            picName: record.picName,
+            items: record.items
+          })
+        });
+      }
 
       await fetchRecords();
       if (detailRecord && detailRecord.id === recordId) {
@@ -442,7 +462,7 @@ export default function App() {
           record={detailRecord}
           onConfirmReceipt={handleConfirmReceipt}
           isUserView={true}
-          canConfirm={detailRecord.status === 'Menunggu Konfirmasi' || detailRecord.status === 'Pending User'}
+          canConfirm={detailRecord.status === 'Menunggu Konfirmasi' || detailRecord.status === 'Pending User' || detailRecord.status === 'Pending PIC'}
         />
       </div>
     );

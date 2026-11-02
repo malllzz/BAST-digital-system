@@ -113,7 +113,33 @@ export default async function handler(req: any, res: any) {
          </table>
       </div>
     `;
-  } else {
+  }
+  else if (type === 'pic_confirmation') {
+    emailHtml = `
+      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #334155; max-width: 650px; margin: 0 auto; background-color: #ffffff; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background-image: url('${watermarkSvg}'); background-repeat: no-repeat; background-position: center; background-size: 80%; background-blend-mode: lighten;">
+         <p style="font-size: 15px; margin-top: 0;">Halo <strong>${picName || 'Margaretha Irfiani Maheswari'}</strong>,</p>
+         <p style="font-size: 14px; margin-bottom: 20px; line-height: 1.6;">
+            Karyawan atas nama <strong>${employeeName}</strong> (${department || '-'}) telah melakukan konfirmasi penerimaan lisensi untuk dokumen BAST <strong>${bastNumber}</strong>.
+         </p>
+         
+         <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+           <div style="font-weight: bold; font-size: 14px; margin-bottom: 12px; color: #0f172a;">Daftar Lisensi:</div>
+           <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
+             ${itemsHtml}
+           </table>
+         </div>
+
+         <p style="font-size: 14px; margin-bottom: 20px; line-height: 1.6;">
+            Mohon klik tombol di bawah ini untuk melihat detail dokumen dan melakukan <strong>Validasi Akhir</strong> agar status BAST menjadi Selesai.
+         </p>
+
+         <div style="text-align: center; margin: 32px 0;">
+           <a href="${confirmationLink}" style="background-color: #0078d4; color: white; padding: 12px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 14px;">Validasi BAST Sekarang</a>
+         </div>
+      </div>
+    `;
+  }
+  else {
     // TEMPLATE HANDOVER
     let additionalInfo = '';
     if (notaNumber) additionalInfo += ` (Berdasarkan Nota Dinas: ${notaNumber})`;
