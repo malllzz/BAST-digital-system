@@ -411,7 +411,7 @@ export const BastDetailModal: React.FC<BastDetailModalProps> = ({
           )}
 
           {/* Tombol Verifikasi Akhir untuk Admin/PIC (Pihak Pertama) */}
-          {!isUserView && canConfirm && record.status === 'Pending PIC' && (
+          {canConfirm && record.status === 'Pending PIC' && (
             <div className="bg-blue-50 border-t border-blue-200 p-3.5 flex flex-col sm:flex-row items-center justify-between gap-3 print-hidden relative z-20 shrink-0">
               <div className="text-xs text-blue-900">
                 <strong>Pengesahan Akhir:</strong> User telah menerima dokumen ini. Lakukan validasi akhir agar BAST resmi selesai.
