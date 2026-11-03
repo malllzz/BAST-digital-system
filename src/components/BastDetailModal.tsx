@@ -34,11 +34,11 @@ export const BastDetailModal: React.FC<BastDetailModalProps> = ({
             margin: 10mm; 
           }
           
-          /* KUNCI 1: Paksa body agar tidak melampaui 1 halaman (hilangkan efek scroll & padding background) */
+         /* KUNCI 1: Reset tinggi dokumen agar tidak terpotong saat dicetak (Safari fix) */
           html, body {
-            height: 100% !important;
-            max-height: 100vh !important;
-            overflow: hidden !important;
+            height: auto !important;
+            max-height: none !important;
+            overflow: visible !important;
             margin: 0 !important;
             padding: 0 !important;
             background: white !important;
@@ -144,16 +144,16 @@ export const BastDetailModal: React.FC<BastDetailModalProps> = ({
 
           {/* Printable Paper Canvas - Compact & Tightened */}
           <div className="flex-1 overflow-y-auto p-5 sm:p-7 space-y-3.5 bg-white relative">
-            
+
             {/* Header BAST Korporat */}
             <div className="border-b-2 border-slate-900 pb-3 relative z-10 avoid-page-break">
               <div className="flex items-center justify-between gap-4">
                 {/* Logo Transjakarta */}
                 <div className="flex items-center shrink-0">
-                  <img 
-                    src="/transjakarta-logo.png" 
-                    alt="Logo PT Transportasi Jakarta" 
-                    className="h-10 sm:h-12 w-auto object-contain" 
+                  <img
+                    src="/transjakarta-logo.png"
+                    alt="Logo PT Transportasi Jakarta"
+                    className="h-10 sm:h-12 w-auto object-contain"
                   />
                 </div>
                 {/* Judul & Nomor BAST */}
@@ -295,10 +295,9 @@ export const BastDetailModal: React.FC<BastDetailModalProps> = ({
                           )}
                         </td>
                         <td className="p-2">
-                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-medium ${
-                            item.licenseType === 'Perpetual' ? 'bg-purple-100 text-purple-800' : 
+                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-medium ${item.licenseType === 'Perpetual' ? 'bg-purple-100 text-purple-800' :
                             item.licenseType === 'Tahunan' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'
-                          }`}>
+                            }`}>
                             {item.licenseType}
                           </span>
                         </td>
@@ -389,9 +388,9 @@ export const BastDetailModal: React.FC<BastDetailModalProps> = ({
           </div>
 
           {/* Footer Actions (Tampil Khusus UI Interaktif, Tidak Tercetak) */}
-          
-          {/* Tombol Konfirmasi untuk User (Pihak Kedua) */}
-          {isUserView && canConfirm && (record.status === 'Menunggu Konfirmasi' || record.status === 'Pending User') && (
+
+          {/* Tombol Konfirmasi HANYA muncul jika User BELUM konfirmasi */}
+          {canConfirm && (record.status === 'Menunggu Konfirmasi' || record.status === 'Pending User') && !record.userConfirmationDate && (
             <div className="bg-amber-50 border-t border-amber-200 p-3.5 flex flex-col sm:flex-row items-center justify-between gap-3 print-hidden relative z-20 shrink-0">
               <div className="text-xs text-amber-900">
                 <strong>Tindakan Dibutuhkan:</strong> Periksa kesesuaian lisensi di atas, lalu konfirmasi penerimaan.
@@ -410,8 +409,8 @@ export const BastDetailModal: React.FC<BastDetailModalProps> = ({
             </div>
           )}
 
-          {/* Tombol Verifikasi Akhir untuk Admin/PIC (Pihak Pertama) */}
-          {canConfirm && record.status === 'Pending PIC' && (
+          {/* Tombol Verifikasi Akhir HANYA muncul jika User SUDAH konfirmasi, tapi PIC BELUM */}
+          {canConfirm && record.status === 'Pending PIC' && record.userConfirmationDate && !record.picConfirmationDate && (
             <div className="bg-blue-50 border-t border-blue-200 p-3.5 flex flex-col sm:flex-row items-center justify-between gap-3 print-hidden relative z-20 shrink-0">
               <div className="text-xs text-blue-900">
                 <strong>Pengesahan Akhir:</strong> User telah menerima dokumen ini. Lakukan validasi akhir agar BAST resmi selesai.
