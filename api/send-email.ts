@@ -134,7 +134,7 @@ export default async function handler(req: any, res: any) {
          </p>
 
          <div style="text-align: center; margin: 32px 0;">
-           <a href="${confirmationLink}" style="background-color: #0078d4; color: white; padding: 12px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 14px;">Validasi BAST Sekarang</a>
+           <a href="${confirmationLink}&role=pic" style="background-color: #0078d4; color: white; padding: 12px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 14px;">Validasi BAST Sekarang</a>
          </div>
       </div>
     `;

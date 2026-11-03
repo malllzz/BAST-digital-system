@@ -9,6 +9,7 @@ interface BastDetailModalProps {
   onConfirmReceipt?: (recordId: string) => void;
   isUserView?: boolean;
   canConfirm?: boolean;
+  viewerRole?: 'user' | 'pic' | 'admin'; // <-- TAMBAHKAN INI
 }
 
 export const BastDetailModal: React.FC<BastDetailModalProps> = ({
@@ -18,6 +19,7 @@ export const BastDetailModal: React.FC<BastDetailModalProps> = ({
   onConfirmReceipt,
   isUserView,
   canConfirm,
+  viewerRole = 'user', // <-- TANGKAP DI SINI
 }) => {
   if (!isOpen || !record) return null;
 
@@ -389,8 +391,8 @@ export const BastDetailModal: React.FC<BastDetailModalProps> = ({
 
           {/* Footer Actions (Tampil Khusus UI Interaktif, Tidak Tercetak) */}
 
-          {/* Tombol Konfirmasi HANYA muncul jika User BELUM konfirmasi */}
-          {canConfirm && (record.status === 'Menunggu Konfirmasi' || record.status === 'Pending User') && !record.userConfirmationDate && (
+          {/* Tombol Konfirmasi HANYA muncul jika role adalah USER */}
+          {canConfirm && viewerRole === 'user' && (record.status === 'Menunggu Konfirmasi' || record.status === 'Pending User') && !record.userConfirmationDate && (
             <div className="bg-amber-50 border-t border-amber-200 p-3.5 flex flex-col sm:flex-row items-center justify-between gap-3 print-hidden relative z-20 shrink-0">
               <div className="text-xs text-amber-900">
                 <strong>Tindakan Dibutuhkan:</strong> Periksa kesesuaian lisensi di atas, lalu konfirmasi penerimaan.
@@ -409,8 +411,8 @@ export const BastDetailModal: React.FC<BastDetailModalProps> = ({
             </div>
           )}
 
-          {/* Tombol Verifikasi Akhir HANYA muncul jika User SUDAH konfirmasi, tapi PIC BELUM */}
-          {canConfirm && record.status === 'Pending PIC' && record.userConfirmationDate && !record.picConfirmationDate && (
+          {/* Tombol Verifikasi Akhir HANYA muncul jika role adalah PIC atau ADMIN */}
+          {canConfirm && (viewerRole === 'pic' || viewerRole === 'admin') && record.status === 'Pending PIC' && record.userConfirmationDate && !record.picConfirmationDate && (
             <div className="bg-blue-50 border-t border-blue-200 p-3.5 flex flex-col sm:flex-row items-center justify-between gap-3 print-hidden relative z-20 shrink-0">
               <div className="text-xs text-blue-900">
                 <strong>Pengesahan Akhir:</strong> User telah menerima dokumen ini. Lakukan validasi akhir agar BAST resmi selesai.

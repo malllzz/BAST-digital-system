@@ -94,12 +94,13 @@ export default function App() {
     if (records.length > 0) {
       const params = new URLSearchParams(window.location.search);
       const urlId = params.get('id');
+      const urlRole = params.get('role');
 
       if (urlId) {
         const targetRecord = records.find(r => r.id === urlId);
         if (targetRecord) {
           setIsStandaloneMode(true);
-          setCurrentRole('user');
+          setCurrentRole(urlRole === 'pic' ? 'pic' : 'user');
           setCurrentUser({
             name: targetRecord.recipientName,
             nik: targetRecord.recipientNIK,
@@ -461,8 +462,9 @@ export default function App() {
           onClose={() => { }}
           record={detailRecord}
           onConfirmReceipt={handleConfirmReceipt}
-          isUserView={true}
-          canConfirm={detailRecord.status === 'Menunggu Konfirmasi' || detailRecord.status === 'Pending User' || detailRecord.status === 'Pending PIC'}
+          isUserView={currentRole === 'user'}
+          viewerRole={currentRole} // <-- TAMBAHKAN BARIS INI
+          canConfirm={currentRole === 'pic' ? detailRecord.status === 'Pending PIC' : (detailRecord.status === 'Menunggu Konfirmasi' || detailRecord.status === 'Pending User')}
         />
       </div>
     );
@@ -565,7 +567,8 @@ export default function App() {
         record={detailRecord}
         onConfirmReceipt={handleConfirmReceipt}
         isUserView={currentRole === 'user'}
-        canConfirm={currentRole === 'user' && detailRecord?.recipientEmail.toLowerCase() === currentUser.email.toLowerCase() && (detailRecord?.status === 'Menunggu Konfirmasi' || detailRecord?.status === 'Pending User')}
+        viewerRole={currentRole}
+        canConfirm={currentRole === 'user' ? (detailRecord?.recipientEmail.toLowerCase() === currentUser.email.toLowerCase() && (detailRecord?.status === 'Menunggu Konfirmasi' || detailRecord?.status === 'Pending User')) : true} // <-- GANTI BARIS INI
       />
 
       <EmailPreviewModal
