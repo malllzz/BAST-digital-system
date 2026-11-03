@@ -250,8 +250,7 @@ export default function App() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            // to: 'margaretha.maheswari@transjakarta.co.id',
-            to: 'malikazizrmdhn@gmail.com',
+            to: 'margaretha.maheswari@transjakarta.co.id',
             subject: `[ACTION REQUIRED] Validasi Akhir BAST Lisensi ${record.bastNumber}`,
             type: 'pic_confirmation',
             bastId: record.id,
